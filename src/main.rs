@@ -11,7 +11,7 @@ fn usage() {
 fn run(source: &str) -> Result<(), String> {
     token::Scanner::new(source)
         .scan()
-        .map_err(|e| format!("Scanner error: {e}"))?
+        .map_err(|errors| token::Scanner::report(&errors))?
         .iter()
         .for_each(|token| println!("Read token: {:?}", token));
     Ok(())
@@ -36,8 +36,11 @@ fn run_repl() -> Result<(), String> {
 
         match bytes_read {
             0 => return Ok(()), // EOF
-            _ => run(&input)?
-        }
+            _ => {
+                let _ = run(&input)
+                    .map_err(|e| eprintln!("{e}"));
+            }
+        };
     }
 }
 

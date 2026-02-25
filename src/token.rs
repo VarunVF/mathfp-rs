@@ -43,8 +43,13 @@ impl Scanner {
         }
     }
 
-    pub fn scan(&mut self) -> Result<Vec<Token>, String> {
+    pub fn report(errors: &Vec<String>) -> String {
+        format!("Scanner errors:\n{}", errors.join("\n"))
+    }
+
+    pub fn scan(&mut self) -> Result<Vec<Token>, Vec<String>> {
         let mut tokens: Vec<Token> = Vec::new();
+        let mut errors: Vec<String> = Vec::new();
         loop {
             match self.scan_token() {
                 Ok(token) => {
@@ -54,10 +59,15 @@ impl Scanner {
                         break;
                     }
                 },
-                Err(message) => return Err(format!("Scanner error: {message}")),
+                Err(message) => errors.push(message),
             }
         }
-        Ok(tokens)
+        
+        if errors.is_empty() {
+            Ok(tokens)
+        } else {
+            Err(errors)
+        }
     }
 
     fn scan_token(&mut self) -> Result<Token, String> {
@@ -113,10 +123,9 @@ impl Scanner {
         }
 
         let lexeme = &self.source[self.start..self.current];
-        match lexeme.parse::<f64>() {
-            Ok(value) => Ok(Token::Number(value)),
-            Err(error) => Err(format!("Scanner error: {}", error)),
-        }
+        let value = lexeme.parse::<f64>()
+            .map_err(|e| format!("Failed to parse '{lexeme}' as number: {e}"))?;
+        Ok(Token::Number(value))
     }
 
     fn identifier(&mut self) -> Result<Token, String> {
