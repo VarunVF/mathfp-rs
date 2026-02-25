@@ -43,7 +43,7 @@ impl Scanner {
         }
     }
 
-    pub fn scan(&mut self) -> Vec<Token> {
+    pub fn scan(&mut self) -> Result<Vec<Token>, String> {
         let mut tokens: Vec<Token> = Vec::new();
         loop {
             match self.scan_token() {
@@ -54,10 +54,10 @@ impl Scanner {
                         break;
                     }
                 },
-                Err(message) => eprintln!("Scanner error: {}", message),
+                Err(message) => return Err(format!("Scanner error: {message}")),
             }
         }
-        tokens
+        Ok(tokens)
     }
 
     fn scan_token(&mut self) -> Result<Token, String> {
@@ -146,7 +146,10 @@ impl Scanner {
                 self.advance_by(3);
                 Ok(Token::MapsTo)
             },
-            _ => Err("Expected a |-> (MapsTo) symbol".to_string()),
+            _ => {
+                self.advance();
+                Err("Expected a |-> (MapsTo) symbol".to_string())
+            }
         }
     }
     
@@ -158,7 +161,10 @@ impl Scanner {
                 self.advance_by(2);
                 Ok(Token::Binding)
             },
-            _ => Err("Expected a := (Binding) symbol".to_string()),
+            _ => {
+                self.advance();
+                Err("Expected a := (Binding) symbol".to_string())
+            }
         }
     }
 }
@@ -171,7 +177,8 @@ mod tests {
 
     // testing helper
     fn assert_scan(input: &str, expected: Vec<Token>) {
-        assert_eq!(Scanner::new(input).scan(), expected, "Failed on input: {input}");
+        let actual = Scanner::new(input).scan().unwrap();
+        assert_eq!(actual, expected, "Failed on input: {input}");
     }
 
     #[test]

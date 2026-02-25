@@ -1,10 +1,51 @@
 mod token;
 
-fn main() {
-    let mut scanner = token::Scanner::new(concat!(
-        "x := 2 * 5. / 1.0; y := 7\n",
-        "f := n |-> if n > -.5 then (x + y) else y\n",
-    ));
-    let tokens = scanner.scan();
-    println!("tokens = {:?}", tokens);
+use std::io::{self, Write};
+use std::fs;
+
+
+fn usage() {
+    println!("Usage: mathfp [file_name]");
+}
+
+fn run(source: &str) -> Result<(), String> {
+    token::Scanner::new(source)
+        .scan()
+        .map_err(|e| format!("Scanner error: {e}"))?
+        .iter()
+        .for_each(|token| println!("Read token: {:?}", token));
+    Ok(())
+}
+
+fn run_file(file_name: &str) -> Result<(), String> {
+    let contents = fs::read_to_string(file_name)
+        .map_err(|e| format!("Could not read file {file_name}: {e}"))?;
+    run(&contents)?;
+    Ok(())
+}
+
+fn run_repl() -> Result<(), String> {
+    loop {
+        print!(">>> ");
+        io::stdout().flush()
+            .map_err(|e| format!("Failed to flush stdout: {e}"))?;
+
+        let mut input = String::new();
+        let bytes_read = io::stdin().read_line(&mut input)
+            .map_err(|e| format!("Error reading input: {e}"))?;
+
+        match bytes_read {
+            0 => return Ok(()), // EOF
+            _ => run(&input)?
+        }
+    }
+}
+
+fn main() -> Result<(), String> {
+    let argv: Vec<String> = std::env::args().collect();
+    match argv.len() {
+        1 => run_repl(),
+        2 => run_file(&argv[1]),
+        _ => { usage(); Err("Invalid number of arguments.".to_string()) }
+    }
 }
