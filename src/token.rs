@@ -13,6 +13,7 @@ pub enum Token {
     // Data tokens
     Identifier(String),
     Number(f64),
+    String(String),
 
     // Keywords
     If,
@@ -91,6 +92,7 @@ impl Scanner {
             ')' => { self.advance(); Ok(Token::RightParen) },
             '|' => self.maps_to(),
             ':' => self.binding(),
+            '"' => self.string(),
             '\n' | ';' => {
                 self.advance();
                 if ch == '\n' {
@@ -185,6 +187,28 @@ impl Scanner {
                 Err(format!("[Line {}] Expected a := (Binding) symbol", self.line))
             }
         }
+    }
+    
+    fn string(&mut self) -> Result<Token, String> {
+        self.advance(); // skip the opening "
+        let mut is_terminated = false;
+        while self.current().is_some() {
+            let ch = self.current().unwrap();
+            self.advance();
+            if ch == '\"' {
+                is_terminated = true;
+                break;
+            }
+        }
+
+        if !is_terminated {
+            return Err(format!("[Line {}] Unterminated string literal", self.line));
+        }
+
+        let str_start = self.start + 1; // after the opening "
+        let str_end = self.current - 1; // the closing "
+        let lexeme = &self.source[str_start..str_end];
+        Ok(Token::String(lexeme.to_string()))
     }
 }
 
@@ -299,6 +323,16 @@ mod tests {
                 EOF
             ]
         );
+    }
+
+    #[test]
+    fn test_string() {
+        assert_scan("msg := \"hello\"", vec![
+            Identifier("msg".to_string()),
+            Binding,
+            Token::String("hello".to_string()),
+            EOF
+        ]);
     }
 
     #[test]
