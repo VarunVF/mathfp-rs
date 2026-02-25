@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     // Single-character tokens
     Plus,
@@ -160,5 +160,131 @@ impl Scanner {
             },
             _ => Err("Expected a := (Binding) symbol".to_string()),
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use Token::*;
+
+    // testing helper
+    fn assert_scan(input: &str, expected: Vec<Token>) {
+        assert_eq!(Scanner::new(input).scan(), expected, "Failed on input: {input}");
+    }
+
+    #[test]
+    fn test_single_stmt() {
+        assert_scan("f := x |-> 2 * x;", vec![
+            Identifier("f".to_string()),
+            Binding,
+            Identifier("x".to_string()),
+            MapsTo,
+            Number(2.0),
+            Star,
+            Identifier("x".to_string()),
+            EndStmt,
+            EOF,
+        ]);
+    }
+
+    #[test]
+    fn test_multiple_stmt() {
+        assert_scan("x := 5.0; y \n", vec![
+            Identifier("x".to_string()),
+            Binding,
+            Number(5.0),
+            EndStmt,
+            Identifier("y".to_string()),
+            EndStmt,
+            EOF,
+        ]);
+    }
+
+
+    #[test]
+    fn test_single_symbols() {
+        assert_scan(
+            "+ - * / < > ( ) ;",
+            vec![
+                Plus, Minus, Star, Slash, LessThan, GreaterThan, 
+                LeftParen, RightParen, EndStmt, EOF
+            ]
+        );
+    }
+
+    #[test]
+    fn test_multi_char_symbols() {
+        assert_scan(
+            ":= |->",
+            vec![Binding, MapsTo, EOF]
+        );
+    }
+
+    #[test]
+    fn test_numbers() {
+        assert_scan(
+            "123 45.67 .5 -0.5",
+            vec![
+                Number(123.0),
+                Number(45.67),
+                Number(0.5),
+                Minus,
+                Number(0.5),
+                EOF
+            ]
+        );
+    }
+
+    #[test]
+    fn test_keywords_and_identifiers() {
+        assert_scan(
+            "if then else iffy then_else",
+            vec![
+                If, Then, Else,
+                Identifier("iffy".to_string()),
+                Identifier("then_else".to_string()),
+                EOF
+            ]
+        );
+    }
+
+    #[test]
+    fn test_complex_expression_no_whitespace() {
+        assert_scan(
+            "a:=b|->if(n>0)then x else y;",
+            vec![
+                Identifier("a".to_string()),
+                Binding,
+                Identifier("b".to_string()),
+                MapsTo,
+                If,
+                LeftParen,
+                Identifier("n".to_string()),
+                GreaterThan,
+                Number(0.0),
+                RightParen,
+                Then,
+                Identifier("x".to_string()),
+                Else,
+                Identifier("y".to_string()),
+                EndStmt,
+                EOF
+            ]
+        );
+    }
+
+    #[test]
+    fn test_whitespace_and_newlines() {
+        assert_scan(
+            "   x     :=   \t   10  \n",
+            vec![Identifier("x".to_string()), Binding, Number(10.0), EndStmt, EOF]
+        );
+    }
+
+    #[test]
+    fn test_empty() {
+        assert_scan("", vec![EOF]);
     }
 }
