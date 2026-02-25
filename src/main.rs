@@ -20,7 +20,10 @@ fn run(source: &str) -> Result<(), String> {
 fn run_file(file_name: &str) -> Result<(), String> {
     let contents = fs::read_to_string(file_name)
         .map_err(|e| format!("Could not read file {file_name}: {e}"))?;
-    run(&contents)?;
+
+    let _ = run(&contents)
+        .map_err(|e| eprintln!("{e}"));
+
     Ok(())
 }
 

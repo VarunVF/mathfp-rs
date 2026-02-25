@@ -32,6 +32,7 @@ pub struct Scanner {
     source: String,
     start: usize,
     current: usize,
+    line: usize,
 }
 
 impl Scanner {
@@ -40,6 +41,7 @@ impl Scanner {
             source: source.to_owned(),
             start: 0,
             current: 0,
+            line: 1
         }
     }
 
@@ -89,13 +91,19 @@ impl Scanner {
             ')' => { self.advance(); Ok(Token::RightParen) },
             '|' => self.maps_to(),
             ':' => self.binding(),
-            '\n' | ';' => { self.advance(); Ok(Token::EndStmt) },
+            '\n' | ';' => {
+                self.advance();
+                if ch == '\n' {
+                    self.line += 1;
+                }
+                Ok(Token::EndStmt)
+            },
             ' ' | '\r' | '\t' => { self.advance(); self.scan_token() } // Skip whitespace
             _ if ch.is_ascii_digit() || ch == '.' => self.number(),
             _ if ch.is_alphabetic() => self.identifier(),
             _ => {
                 self.advance();
-                Err(format!("Unexpected character: {}", ch))
+                Err(format!("[Line {}] Unexpected character: {}", self.line, ch))
             },
         }
     }
@@ -124,7 +132,9 @@ impl Scanner {
 
         let lexeme = &self.source[self.start..self.current];
         let value = lexeme.parse::<f64>()
-            .map_err(|e| format!("Failed to parse '{lexeme}' as number: {e}"))?;
+            .map_err(|e|
+                format!("[Line {}] Failed to parse '{}' as a number: {}", self.line, lexeme, e)
+            )?;
         Ok(Token::Number(value))
     }
 
@@ -157,7 +167,7 @@ impl Scanner {
             },
             _ => {
                 self.advance();
-                Err("Expected a |-> (MapsTo) symbol".to_string())
+                Err(format!("[Line {}] Expected a |-> (MapsTo) symbol", self.line))
             }
         }
     }
@@ -172,7 +182,7 @@ impl Scanner {
             },
             _ => {
                 self.advance();
-                Err("Expected a := (Binding) symbol".to_string())
+                Err(format!("[Line {}] Expected a := (Binding) symbol", self.line))
             }
         }
     }
