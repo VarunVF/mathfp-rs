@@ -26,7 +26,7 @@ pub enum Token {
     EndStmt,
 
     // Last token
-    EOF,
+    Eof,
 }
 
 pub struct Scanner {
@@ -42,11 +42,11 @@ impl Scanner {
             source: source.to_owned(),
             start: 0,
             current: 0,
-            line: 1
+            line: 1,
         }
     }
 
-    pub fn report(errors: &Vec<String>) -> String {
+    pub fn report(errors: &[String]) -> String {
         format!("Scanner errors:\n{}", errors.join("\n"))
     }
 
@@ -56,16 +56,16 @@ impl Scanner {
         loop {
             match self.scan_token() {
                 Ok(token) => {
-                    let is_eof = matches!(token, Token::EOF);
+                    let is_eof = matches!(token, Token::Eof);
                     tokens.push(token);
                     if is_eof {
                         break;
                     }
-                },
+                }
                 Err(message) => errors.push(message),
             }
         }
-        
+
         if errors.is_empty() {
             Ok(tokens)
         } else {
@@ -78,18 +78,42 @@ impl Scanner {
 
         let ch = match self.current() {
             Some(value) => value,
-            None => return Ok(Token::EOF),
+            None => return Ok(Token::Eof),
         };
 
         match ch {
-            '+' => { self.advance(); Ok(Token::Plus) },
-            '-' => { self.advance(); Ok(Token::Minus) },
-            '*' => { self.advance(); Ok(Token::Star) },
-            '/' => { self.advance(); Ok(Token::Slash) },
-            '<' => { self.advance(); Ok(Token::LessThan) },
-            '>' => { self.advance(); Ok(Token::GreaterThan) },
-            '(' => { self.advance(); Ok(Token::LeftParen) },
-            ')' => { self.advance(); Ok(Token::RightParen) },
+            '+' => {
+                self.advance();
+                Ok(Token::Plus)
+            }
+            '-' => {
+                self.advance();
+                Ok(Token::Minus)
+            }
+            '*' => {
+                self.advance();
+                Ok(Token::Star)
+            }
+            '/' => {
+                self.advance();
+                Ok(Token::Slash)
+            }
+            '<' => {
+                self.advance();
+                Ok(Token::LessThan)
+            }
+            '>' => {
+                self.advance();
+                Ok(Token::GreaterThan)
+            }
+            '(' => {
+                self.advance();
+                Ok(Token::LeftParen)
+            }
+            ')' => {
+                self.advance();
+                Ok(Token::RightParen)
+            }
             '|' => self.maps_to(),
             ':' => self.binding(),
             '"' => self.string(),
@@ -99,14 +123,17 @@ impl Scanner {
                     self.line += 1;
                 }
                 Ok(Token::EndStmt)
-            },
-            ' ' | '\r' | '\t' => { self.advance(); self.scan_token() } // Skip whitespace
+            }
+            ' ' | '\r' | '\t' => {
+                self.advance();
+                self.scan_token()
+            } // Skip whitespace
             _ if ch.is_ascii_digit() || ch == '.' => self.number(),
             _ if ch.is_alphabetic() => self.identifier(),
             _ => {
                 self.advance();
                 Err(format!("[Line {}] Unexpected character: {}", self.line, ch))
-            },
+            }
         }
     }
 
@@ -133,10 +160,12 @@ impl Scanner {
         }
 
         let lexeme = &self.source[self.start..self.current];
-        let value = lexeme.parse::<f64>()
-            .map_err(|e|
-                format!("[Line {}] Failed to parse '{}' as a number: {}", self.line, lexeme, e)
-            )?;
+        let value = lexeme.parse::<f64>().map_err(|e| {
+            format!(
+                "[Line {}] Failed to parse '{}' as a number: {}",
+                self.line, lexeme, e
+            )
+        })?;
         Ok(Token::Number(value))
     }
 
@@ -158,37 +187,43 @@ impl Scanner {
             _ => Ok(Token::Identifier(lexeme.to_string())),
         }
     }
-    
+
     fn maps_to(&mut self) -> Result<Token, String> {
         // symbol |->
-        let symbol = &self.source[self.start..self.current+3];
+        let symbol = &self.source[self.start..self.current + 3];
         match symbol {
             "|->" => {
                 self.advance_by(3);
                 Ok(Token::MapsTo)
-            },
+            }
             _ => {
                 self.advance();
-                Err(format!("[Line {}] Expected a |-> (MapsTo) symbol", self.line))
+                Err(format!(
+                    "[Line {}] Expected a |-> (MapsTo) symbol",
+                    self.line
+                ))
             }
         }
     }
-    
+
     fn binding(&mut self) -> Result<Token, String> {
         // symbol :=
-        let symbol = &self.source[self.start..self.current+2];
+        let symbol = &self.source[self.start..self.current + 2];
         match symbol {
             ":=" => {
                 self.advance_by(2);
                 Ok(Token::Binding)
-            },
+            }
             _ => {
                 self.advance();
-                Err(format!("[Line {}] Expected a := (Binding) symbol", self.line))
+                Err(format!(
+                    "[Line {}] Expected a := (Binding) symbol",
+                    self.line
+                ))
             }
         }
     }
-    
+
     fn string(&mut self) -> Result<Token, String> {
         self.advance(); // skip the opening "
         let mut is_terminated = false;
@@ -212,7 +247,6 @@ impl Scanner {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,50 +260,60 @@ mod tests {
 
     #[test]
     fn test_single_stmt() {
-        assert_scan("f := x |-> 2 * x;", vec![
-            Identifier("f".to_string()),
-            Binding,
-            Identifier("x".to_string()),
-            MapsTo,
-            Number(2.0),
-            Star,
-            Identifier("x".to_string()),
-            EndStmt,
-            EOF,
-        ]);
+        assert_scan(
+            "f := x |-> 2 * x;",
+            vec![
+                Identifier("f".to_string()),
+                Binding,
+                Identifier("x".to_string()),
+                MapsTo,
+                Number(2.0),
+                Star,
+                Identifier("x".to_string()),
+                EndStmt,
+                Eof,
+            ],
+        );
     }
 
     #[test]
     fn test_multiple_stmt() {
-        assert_scan("x := 5.0; y \n", vec![
-            Identifier("x".to_string()),
-            Binding,
-            Number(5.0),
-            EndStmt,
-            Identifier("y".to_string()),
-            EndStmt,
-            EOF,
-        ]);
+        assert_scan(
+            "x := 5.0; y \n",
+            vec![
+                Identifier("x".to_string()),
+                Binding,
+                Number(5.0),
+                EndStmt,
+                Identifier("y".to_string()),
+                EndStmt,
+                Eof,
+            ],
+        );
     }
-
 
     #[test]
     fn test_single_symbols() {
         assert_scan(
             "+ - * / < > ( ) ;",
             vec![
-                Plus, Minus, Star, Slash, LessThan, GreaterThan, 
-                LeftParen, RightParen, EndStmt, EOF
-            ]
+                Plus,
+                Minus,
+                Star,
+                Slash,
+                LessThan,
+                GreaterThan,
+                LeftParen,
+                RightParen,
+                EndStmt,
+                Eof,
+            ],
         );
     }
 
     #[test]
     fn test_multi_char_symbols() {
-        assert_scan(
-            ":= |->",
-            vec![Binding, MapsTo, EOF]
-        );
+        assert_scan(":= |->", vec![Binding, MapsTo, Eof]);
     }
 
     #[test]
@@ -282,8 +326,8 @@ mod tests {
                 Number(0.5),
                 Minus,
                 Number(0.5),
-                EOF
-            ]
+                Eof,
+            ],
         );
     }
 
@@ -292,11 +336,13 @@ mod tests {
         assert_scan(
             "if then else iffy then_else",
             vec![
-                If, Then, Else,
+                If,
+                Then,
+                Else,
                 Identifier("iffy".to_string()),
                 Identifier("then_else".to_string()),
-                EOF
-            ]
+                Eof,
+            ],
         );
     }
 
@@ -320,31 +366,40 @@ mod tests {
                 Else,
                 Identifier("y".to_string()),
                 EndStmt,
-                EOF
-            ]
+                Eof,
+            ],
         );
     }
 
     #[test]
     fn test_string() {
-        assert_scan("msg := \"hello\"", vec![
-            Identifier("msg".to_string()),
-            Binding,
-            Token::String("hello".to_string()),
-            EOF
-        ]);
+        assert_scan(
+            "msg := \"hello\"",
+            vec![
+                Identifier("msg".to_string()),
+                Binding,
+                Token::String("hello".to_string()),
+                Eof,
+            ],
+        );
     }
 
     #[test]
     fn test_whitespace_and_newlines() {
         assert_scan(
             "   x     :=   \t   10  \n",
-            vec![Identifier("x".to_string()), Binding, Number(10.0), EndStmt, EOF]
+            vec![
+                Identifier("x".to_string()),
+                Binding,
+                Number(10.0),
+                EndStmt,
+                Eof,
+            ],
         );
     }
 
     #[test]
     fn test_empty() {
-        assert_scan("", vec![EOF]);
+        assert_scan("", vec![Eof]);
     }
 }

@@ -1,5 +1,5 @@
-use crate::token::Token;
 use crate::ast::{Expr, LiteralValue};
+use crate::token::Token;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -16,28 +16,26 @@ impl Parser {
     }
 
     fn current(&self) -> Option<&Token> {
-        self.tokens.iter().nth(self.current)
+        self.tokens.get(self.current)
     }
 
     fn advance(&mut self) {
         self.current += 1;
     }
 
-    fn lookahead(&self) -> Option<&Token> {
-        self.tokens.iter().nth(self.current + 1)
-    }
-
     fn program(&mut self) -> Result<Expr, String> {
-        assert!(matches!(self.tokens.last(), Some(Token::EOF)),
-            "No EOF token was found");
-        
+        assert!(
+            matches!(self.tokens.last(), Some(Token::Eof)),
+            "No EOF token was found"
+        );
+
         let mut statements: Vec<Expr> = vec![];
-        while !matches!(self.current(), Some(Token::EOF)) {
+        while !matches!(self.current(), Some(Token::Eof)) {
             match self.statement()? {
                 Expr::Empty => continue,
                 stmt => statements.push(stmt),
             };
-        };
+        }
 
         Ok(Expr::Program { statements })
     }
@@ -48,10 +46,13 @@ impl Parser {
             Ok(Expr::Empty) => expr,
             Err(msg) => Err(format!("Parser error: {msg}")),
             _ => match self.current() {
-                Some(Token::EndStmt | Token::EOF) => expr,
-                Some(token) => Err(format!("Expected ; or newline after expression, found {:?}", token)),
-                None => unreachable!()
-            }
+                Some(Token::EndStmt | Token::Eof) => expr,
+                Some(token) => Err(format!(
+                    "Expected ; or newline after expression, found {:?}",
+                    token
+                )),
+                None => unreachable!(),
+            },
         }
     }
 
@@ -60,8 +61,8 @@ impl Parser {
             match token {
                 Token::Number(_) => self.binary_expr(),
                 Token::EndStmt => self.empty_expr(),
-                Token::EOF => unreachable!(),
-                _ => Err(format!("Unexpected token: {:?}", token))
+                Token::Eof => unreachable!(),
+                _ => Err(format!("Unexpected token: {:?}", token)),
             }
         } else {
             Err("Expected an expression".to_string())
@@ -77,12 +78,17 @@ impl Parser {
         let mut left = self.term()?;
 
         while matches!(self.current(), Some(Token::Plus) | Some(Token::Minus)) {
-            let op = self.current()
+            let op = self
+                .current()
                 .ok_or("Expected a binary operator".to_string())?
                 .clone();
             self.advance();
             let right = self.term()?;
-            left = Expr::Binary { left: Box::new(left), op, right: Box::new(right) };
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
         }
 
         Ok(left)
@@ -92,14 +98,19 @@ impl Parser {
         let mut left = self.factor()?;
 
         while matches!(self.current(), Some(Token::Star) | Some(Token::Slash)) {
-            let op = self.current()
+            let op = self
+                .current()
                 .ok_or("Expected a binary operator".to_string())?
                 .clone();
             self.advance();
             let right = self.factor()?;
-            left = Expr::Binary { left: Box::new(left), op, right: Box::new(right) };
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
         }
-        
+
         Ok(left)
     }
 
@@ -114,7 +125,7 @@ impl Parser {
                     self.advance();
                     Ok(Expr::Literal(LiteralValue::Number(value)))
                 }
-                _ => Err(format!("Expected a numeric literal, found {:?}", *token))
+                _ => Err(format!("Expected a numeric literal, found {:?}", *token)),
             }
         } else {
             Err("Expected an expression".to_string())
@@ -122,12 +133,11 @@ impl Parser {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Token::*;
     use Expr::*;
+    use Token::*;
 
     // testing helper
     fn assert_parse(input: Vec<Token>, expected: Expr) {
@@ -137,45 +147,45 @@ mod tests {
 
     #[test]
     fn test_empty() {
-        assert_parse(vec![EOF], Program { statements: vec![] });
+        assert_parse(vec![Eof], Program { statements: vec![] });
     }
-    
+
     #[test]
     fn test_expr() {
         assert_parse(
-            vec![Number(5.0), Plus, Number(3.0), Star, Number(1.0), EOF],
-            Program { statements: vec![
-                Binary {
+            vec![Number(5.0), Plus, Number(3.0), Star, Number(1.0), Eof],
+            Program {
+                statements: vec![Binary {
                     left: Box::new(Literal(LiteralValue::Number(5.0))),
                     op: Plus,
                     right: Box::new(Binary {
                         left: Box::new(Literal(LiteralValue::Number(3.0))),
                         op: Star,
-                        right: Box::new(Literal(LiteralValue::Number(1.0)))
-                    } )
-                }
-            ] }
+                        right: Box::new(Literal(LiteralValue::Number(1.0))),
+                    }),
+                }],
+            },
         );
     }
 
     #[test]
     fn test_stmt() {
         assert_parse(
-            vec![Number(5.0), Star, Number(3.0), EndStmt, EOF],
-            Program { statements: vec![
-                Binary {
+            vec![Number(5.0), Star, Number(3.0), EndStmt, Eof],
+            Program {
+                statements: vec![Binary {
                     left: Box::new(Literal(LiteralValue::Number(5.0))),
                     op: Star,
-                    right: Box::new(Literal(LiteralValue::Number(3.0)))
-                }
-            ] }
+                    right: Box::new(Literal(LiteralValue::Number(3.0))),
+                }],
+            },
         );
     }
 
     #[test]
     #[should_panic(expected = "Parser error: Expected a numeric literal, found Star")]
     fn test_invalid_expr() {
-        Parser::new(vec![Number(5.0), Plus, Star, EOF])
+        Parser::new(vec![Number(5.0), Plus, Star, Eof])
             .parse()
             .unwrap();
     }

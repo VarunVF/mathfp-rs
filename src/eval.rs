@@ -1,7 +1,6 @@
 use crate::ast::{Expr, LiteralValue};
 use crate::token::Token;
 
-
 pub fn evaluate(expr: Expr) -> f64 {
     match expr {
         Expr::Literal(LiteralValue::Number(n)) => n,
@@ -15,7 +14,7 @@ pub fn evaluate(expr: Expr) -> f64 {
                 Token::Slash => l / r,
                 _ => unreachable!(),
             }
-        },
+        }
         _ => todo!("Handle other expressions"),
     }
 }

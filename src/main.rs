@@ -1,11 +1,10 @@
 mod ast;
 mod eval;
-mod token;
 mod parser;
+mod token;
 
-use std::io::{self, Write};
 use std::fs;
-
+use std::io::{self, Write};
 
 fn usage() {
     println!("Usage: mathfp [file_name]");
@@ -15,12 +14,11 @@ fn run(source: &str) -> Result<(), String> {
     let tokens = token::Scanner::new(source)
         .scan()
         .map_err(|errors| token::Scanner::report(&errors))?;
-    
+
     // tokens.iter()
     //     .for_each(|token| println!("Read token: {:?}", token));
 
-    let program = parser::Parser::new(tokens)
-        .parse()?;
+    let program = parser::Parser::new(tokens).parse()?;
 
     // println!("Program: {:?}", program);
 
@@ -38,8 +36,7 @@ fn run_file(file_name: &str) -> Result<(), String> {
     let contents = fs::read_to_string(file_name)
         .map_err(|e| format!("Could not read file {file_name}: {e}"))?;
 
-    let _ = run(&contents)
-        .map_err(|e| eprintln!("{e}"));
+    let _ = run(&contents).map_err(|e| eprintln!("{e}"));
 
     Ok(())
 }
@@ -47,18 +44,19 @@ fn run_file(file_name: &str) -> Result<(), String> {
 fn run_repl() -> Result<(), String> {
     loop {
         print!(">>> ");
-        io::stdout().flush()
+        io::stdout()
+            .flush()
             .map_err(|e| format!("Failed to flush stdout: {e}"))?;
 
         let mut input = String::new();
-        let bytes_read = io::stdin().read_line(&mut input)
+        let bytes_read = io::stdin()
+            .read_line(&mut input)
             .map_err(|e| format!("Error reading input: {e}"))?;
 
         match bytes_read {
             0 => return Ok(()), // EOF
             _ => {
-                let _ = run(&input)
-                    .map_err(|e| eprintln!("{e}"));
+                let _ = run(&input).map_err(|e| eprintln!("{e}"));
             }
         };
     }
@@ -69,6 +67,9 @@ fn main() -> Result<(), String> {
     match argv.len() {
         1 => run_repl(),
         2 => run_file(&argv[1]),
-        _ => { usage(); Err("Invalid number of arguments.".to_string()) }
+        _ => {
+            usage();
+            Err("Invalid number of arguments.".to_string())
+        }
     }
 }
