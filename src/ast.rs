@@ -1,7 +1,7 @@
 use crate::token::Token;
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Expr {
     Program {
         statements: Vec<Expr>
@@ -38,7 +38,7 @@ pub enum Expr {
     Empty
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum LiteralValue {
     Number(f64),
     String(String),

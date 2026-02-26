@@ -1,5 +1,3 @@
-use std::thread::current;
-
 use crate::token::Token;
 use crate::ast::{Expr, LiteralValue};
 
@@ -121,5 +119,64 @@ impl Parser {
         } else {
             Err("Expected an expression".to_string())
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use Token::*;
+    use Expr::*;
+
+    // testing helper
+    fn assert_parse(input: Vec<Token>, expected: Expr) {
+        let actual = Parser::new(input.clone()).parse().unwrap();
+        assert_eq!(actual, expected, "Failed on input: {:?}", input);
+    }
+
+    #[test]
+    fn test_empty() {
+        assert_parse(vec![EOF], Program { statements: vec![] });
+    }
+    
+    #[test]
+    fn test_expr() {
+        assert_parse(
+            vec![Number(5.0), Plus, Number(3.0), Star, Number(1.0), EOF],
+            Program { statements: vec![
+                Binary {
+                    left: Box::new(Literal(LiteralValue::Number(5.0))),
+                    op: Plus,
+                    right: Box::new(Binary {
+                        left: Box::new(Literal(LiteralValue::Number(3.0))),
+                        op: Star,
+                        right: Box::new(Literal(LiteralValue::Number(1.0)))
+                    } )
+                }
+            ] }
+        );
+    }
+
+    #[test]
+    fn test_stmt() {
+        assert_parse(
+            vec![Number(5.0), Star, Number(3.0), EndStmt, EOF],
+            Program { statements: vec![
+                Binary {
+                    left: Box::new(Literal(LiteralValue::Number(5.0))),
+                    op: Star,
+                    right: Box::new(Literal(LiteralValue::Number(3.0)))
+                }
+            ] }
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Parser error: Expected a numeric literal, found Star")]
+    fn test_invalid_expr() {
+        Parser::new(vec![Number(5.0), Plus, Star, EOF])
+            .parse()
+            .unwrap();
     }
 }
