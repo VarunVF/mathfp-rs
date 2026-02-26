@@ -1,4 +1,5 @@
 mod ast;
+mod eval;
 mod token;
 mod parser;
 
@@ -21,7 +22,14 @@ fn run(source: &str) -> Result<(), String> {
     let program = parser::Parser::new(tokens)
         .parse()?;
 
-    println!("Program: {:?}", program);
+    // println!("Program: {:?}", program);
+
+    if let ast::Expr::Program { statements } = program {
+        for stmt in statements {
+            let result = eval::evaluate(stmt);
+            println!("{result}");
+        }
+    }
 
     Ok(())
 }
