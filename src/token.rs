@@ -37,8 +37,8 @@ pub struct Scanner {
 }
 
 impl Scanner {
-    pub fn new(source: &str) -> Scanner {
-        Scanner {
+    pub fn new(source: &str) -> Self {
+        Self {
             source: source.to_owned(),
             start: 0,
             current: 0,

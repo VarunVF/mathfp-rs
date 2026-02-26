@@ -1,4 +1,6 @@
+mod ast;
 mod token;
+mod parser;
 
 use std::io::{self, Write};
 use std::fs;
@@ -9,11 +11,18 @@ fn usage() {
 }
 
 fn run(source: &str) -> Result<(), String> {
-    token::Scanner::new(source)
+    let tokens = token::Scanner::new(source)
         .scan()
-        .map_err(|errors| token::Scanner::report(&errors))?
-        .iter()
-        .for_each(|token| println!("Read token: {:?}", token));
+        .map_err(|errors| token::Scanner::report(&errors))?;
+    
+    // tokens.iter()
+    //     .for_each(|token| println!("Read token: {:?}", token));
+
+    let program = parser::Parser::new(tokens)
+        .parse()?;
+
+    println!("Program: {:?}", program);
+
     Ok(())
 }
 
