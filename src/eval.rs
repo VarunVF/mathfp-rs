@@ -1,5 +1,5 @@
 use crate::ast::{Expr, LiteralValue};
-use crate::token::Token;
+use crate::token::TokenType;
 
 pub fn evaluate(expr: Expr) -> f64 {
     match expr {
@@ -7,11 +7,11 @@ pub fn evaluate(expr: Expr) -> f64 {
         Expr::Binary { left, op, right } => {
             let l = evaluate(*left);
             let r = evaluate(*right);
-            match op {
-                Token::Plus => l + r,
-                Token::Minus => l - r,
-                Token::Star => l * r,
-                Token::Slash => l / r,
+            match op.kind {
+                TokenType::Plus => l + r,
+                TokenType::Minus => l - r,
+                TokenType::Star => l * r,
+                TokenType::Slash => l / r,
                 _ => unreachable!(),
             }
         }

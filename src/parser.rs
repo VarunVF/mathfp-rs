@@ -1,5 +1,5 @@
 use crate::ast::{Expr, LiteralValue};
-use crate::token::Token;
+use crate::token::{Token, TokenType};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -19,37 +19,59 @@ impl Parser {
         self.tokens.get(self.current)
     }
 
+    fn current_kind(&self) -> Option<TokenType> {
+        self.tokens
+            .get(self.current)
+            .map(|token| token.kind.clone())
+    }
+
     fn advance(&mut self) {
         self.current += 1;
     }
 
-    fn program(&mut self) -> Result<Expr, String> {
-        assert!(
-            matches!(self.tokens.last(), Some(Token::Eof)),
-            "No EOF token was found"
-        );
+    fn make_error(&self, message: &str) -> Result<Expr, String> {
+        let default = &Token {
+            kind: TokenType::Eof,
+            lexeme: String::new(),
+            line: 1,
+            column: 1,
+        };
+        let token = self.current().unwrap_or(default);
+        Err(format!(
+            "[Line {}, Col {}] {}",
+            token.line, token.column, message
+        ))
+    }
 
-        let mut statements: Vec<Expr> = vec![];
-        while !matches!(self.current(), Some(Token::Eof)) {
+    fn is_at_end(&self) -> bool {
+        match self.current() {
+            Some(token) => token.kind == TokenType::Eof,
+            None => unreachable!(),
+        }
+    }
+
+    pub fn program(&mut self) -> Result<Expr, String> {
+        let mut statements = vec![];
+
+        while !self.is_at_end() {
             match self.statement()? {
                 Expr::Empty => continue,
                 stmt => statements.push(stmt),
-            };
+            }
         }
 
         Ok(Expr::Program { statements })
     }
 
     fn statement(&mut self) -> Result<Expr, String> {
-        let expr = self.expression();
+        let expr = self.expression()?;
         match expr {
-            Ok(Expr::Empty) => expr,
-            Err(msg) => Err(format!("Parser error: {msg}")),
-            _ => match self.current() {
-                Some(Token::EndStmt | Token::Eof) => expr,
-                Some(token) => Err(format!(
+            Expr::Empty => Ok(expr),
+            _ => match self.current_kind() {
+                Some(TokenType::EndStmt | TokenType::Eof) => Ok(expr),
+                Some(kind) => self.make_error(&format!(
                     "Expected ; or newline after expression, found {:?}",
-                    token
+                    kind
                 )),
                 None => unreachable!(),
             },
@@ -57,11 +79,11 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expr, String> {
-        match self.current() {
-            Some(Token::EndStmt) => self.empty_expr(),
-            Some(Token::Eof) => unreachable!(),
+        match self.current_kind() {
+            Some(TokenType::EndStmt) => self.empty_expr(),
+            Some(TokenType::Eof) => unreachable!(),
             Some(_) => self.binary_expr(),
-            None => Err("Expected an expression".to_string()),
+            None => self.make_error("Expected an expression"),
         }
     }
 
@@ -73,11 +95,14 @@ impl Parser {
     fn binary_expr(&mut self) -> Result<Expr, String> {
         let mut left = self.term()?;
 
-        while matches!(self.current(), Some(Token::Plus) | Some(Token::Minus)) {
-            let op = self
-                .current()
-                .ok_or("Expected a binary operator".to_string())?
-                .clone();
+        while matches!(
+            self.current_kind(),
+            Some(TokenType::Plus | TokenType::Minus)
+        ) {
+            let op = match self.current() {
+                Some(op) => op.clone(),
+                None => return self.make_error("Expected a binary operator"),
+            };
             self.advance();
             let right = self.term()?;
             left = Expr::Binary {
@@ -93,11 +118,14 @@ impl Parser {
     fn term(&mut self) -> Result<Expr, String> {
         let mut left = self.factor()?;
 
-        while matches!(self.current(), Some(Token::Star) | Some(Token::Slash)) {
-            let op = self
-                .current()
-                .ok_or("Expected a binary operator".to_string())?
-                .clone();
+        while matches!(
+            self.current_kind(),
+            Some(TokenType::Star | TokenType::Slash)
+        ) {
+            let op = match self.current() {
+                Some(op) => op.clone(),
+                None => return self.make_error("Expected a binary operator"),
+            };
             self.advance();
             let right = self.factor()?;
             left = Expr::Binary {
@@ -115,31 +143,31 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expr, String> {
-        if let Some(token) = self.current() {
-            match *token {
-                Token::Number(value) => {
+        if let Some(kind) = self.current_kind() {
+            match kind {
+                TokenType::Number(value) => {
                     self.advance();
                     Ok(Expr::Literal(LiteralValue::Number(value)))
                 }
-                Token::LeftParen => self.grouping(),
-                _ => Err(format!("Expected a primary expression, found {:?}", *token)),
+                TokenType::LeftParen => self.grouping(),
+                _ => self.make_error(&format!("Expected a primary expression, found {:?}", kind)),
             }
         } else {
-            Err("Expected an expression".to_string())
+            self.make_error("Expected an expression")
         }
     }
 
     fn grouping(&mut self) -> Result<Expr, String> {
         self.advance(); // opening (
         let expr = self.expression()?;
-        match self.current() {
-            Some(Token::RightParen) => {
+        match self.current_kind() {
+            Some(TokenType::RightParen) => {
                 self.advance(); // closing )
                 Ok(Expr::Grouping(Box::new(expr)))
             }
-            Some(token) => Err(format!(
+            Some(kind) => self.make_error(&format!(
                 "Expected ) after parenthesised expression, found {:?}",
-                token
+                kind
             )),
             None => unreachable!(),
         }
@@ -150,7 +178,7 @@ impl Parser {
 mod tests {
     use super::*;
     use Expr::*;
-    use Token::*;
+    use TokenType::*;
 
     // testing helper
     fn assert_parse(input: Vec<Token>, expected: Expr) {
@@ -158,22 +186,40 @@ mod tests {
         assert_eq!(actual, expected, "Failed on input: {:?}", input);
     }
 
+    // token helper
+    fn make_token(kind: TokenType) -> Token {
+        // hardcode char position and lexeme for testing purposes
+        Token {
+            kind,
+            lexeme: std::string::String::new(),
+            line: 1,
+            column: 1,
+        }
+    }
+
     #[test]
     fn test_empty() {
-        assert_parse(vec![Eof], Program { statements: vec![] });
+        assert_parse(vec![make_token(Eof)], Program { statements: vec![] });
     }
 
     #[test]
     fn test_expr() {
         assert_parse(
-            vec![Number(5.0), Plus, Number(3.0), Star, Number(1.0), Eof],
+            vec![
+                make_token(Number(5.0)),
+                make_token(Plus),
+                make_token(Number(3.0)),
+                make_token(Star),
+                make_token(Number(1.0)),
+                make_token(Eof),
+            ],
             Program {
                 statements: vec![Binary {
                     left: Box::new(Literal(LiteralValue::Number(5.0))),
-                    op: Plus,
+                    op: make_token(Plus),
                     right: Box::new(Binary {
                         left: Box::new(Literal(LiteralValue::Number(3.0))),
-                        op: Star,
+                        op: make_token(Star),
                         right: Box::new(Literal(LiteralValue::Number(1.0))),
                     }),
                 }],
@@ -184,11 +230,17 @@ mod tests {
     #[test]
     fn test_stmt() {
         assert_parse(
-            vec![Number(5.0), Star, Number(3.0), EndStmt, Eof],
+            vec![
+                make_token(Number(5.0)),
+                make_token(Star),
+                make_token(Number(3.0)),
+                make_token(EndStmt),
+                make_token(Eof),
+            ],
             Program {
                 statements: vec![Binary {
                     left: Box::new(Literal(LiteralValue::Number(5.0))),
-                    op: Star,
+                    op: make_token(Star),
                     right: Box::new(Literal(LiteralValue::Number(3.0))),
                 }],
             },
@@ -196,11 +248,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Parser error: Expected a primary expression")]
+    #[should_panic(expected = "Expected a primary expression")]
     fn test_invalid_expr() {
-        Parser::new(vec![Number(5.0), Plus, Star, Eof])
-            .parse()
-            .unwrap();
+        Parser::new(vec![
+            make_token(Number(5.0)),
+            make_token(Plus),
+            make_token(Star),
+            make_token(Eof),
+        ])
+        .parse()
+        .unwrap();
     }
 
     #[test]
@@ -208,21 +265,21 @@ mod tests {
         // ((9)*(9))
         assert_parse(
             vec![
-                LeftParen,
-                LeftParen,
-                Number(9.0),
-                RightParen,
-                Star,
-                LeftParen,
-                Number(9.0),
-                RightParen,
-                RightParen,
-                Eof,
+                make_token(LeftParen),
+                make_token(LeftParen),
+                make_token(Number(9.0)),
+                make_token(RightParen),
+                make_token(Star),
+                make_token(LeftParen),
+                make_token(Number(9.0)),
+                make_token(RightParen),
+                make_token(RightParen),
+                make_token(Eof),
             ],
             Program {
                 statements: vec![Grouping(Box::new(Binary {
                     left: Box::new(Grouping(Box::new(Literal(LiteralValue::Number(9.0))))),
-                    op: Star,
+                    op: make_token(Star),
                     right: Box::new(Grouping(Box::new(Literal(LiteralValue::Number(9.0))))),
                 }))],
             },
@@ -234,14 +291,14 @@ mod tests {
     fn test_invalid_grouping_close() {
         // ((9)*(9
         Parser::new(vec![
-            LeftParen,
-            LeftParen,
-            Number(9.0),
-            RightParen,
-            Star,
-            LeftParen,
-            Number(9.0),
-            Eof,
+            make_token(LeftParen),
+            make_token(LeftParen),
+            make_token(Number(9.0)),
+            make_token(RightParen),
+            make_token(Star),
+            make_token(LeftParen),
+            make_token(Number(9.0)),
+            make_token(Eof),
         ])
         .parse()
         .unwrap();
@@ -252,14 +309,14 @@ mod tests {
     fn test_invalid_grouping_open() {
         // 9)*(9))
         Parser::new(vec![
-            Number(9.0),
-            RightParen,
-            Star,
-            LeftParen,
-            Number(9.0),
-            RightParen,
-            RightParen,
-            Eof,
+            make_token(Number(9.0)),
+            make_token(RightParen),
+            make_token(Star),
+            make_token(LeftParen),
+            make_token(Number(9.0)),
+            make_token(RightParen),
+            make_token(RightParen),
+            make_token(Eof),
         ])
         .parse()
         .unwrap();

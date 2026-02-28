@@ -1,5 +1,13 @@
 #[derive(Clone, Debug, PartialEq)]
-pub enum Token {
+pub struct Token {
+    pub kind: TokenType,
+    pub lexeme: String,
+    pub line: usize,
+    pub column: usize,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum TokenType {
     // Single-character tokens
     Plus,
     Minus,
@@ -34,6 +42,7 @@ pub struct Scanner {
     start: usize,
     current: usize,
     line: usize,
+    column: usize,
 }
 
 impl Scanner {
@@ -43,11 +52,21 @@ impl Scanner {
             start: 0,
             current: 0,
             line: 1,
+            column: 0,
         }
     }
 
     pub fn report(errors: &[String]) -> String {
         format!("Scanner errors:\n{}", errors.join("\n"))
+    }
+
+    fn make_token(&self, kind: TokenType, lexeme: &str) -> Result<Token, String> {
+        Ok(Token {
+            kind,
+            lexeme: String::from(lexeme),
+            line: self.line,
+            column: self.column,
+        })
     }
 
     pub fn scan(&mut self) -> Result<Vec<Token>, Vec<String>> {
@@ -56,7 +75,7 @@ impl Scanner {
         loop {
             match self.scan_token() {
                 Ok(token) => {
-                    let is_eof = matches!(token, Token::Eof);
+                    let is_eof = matches!(token.kind, TokenType::Eof);
                     tokens.push(token);
                     if is_eof {
                         break;
@@ -78,41 +97,43 @@ impl Scanner {
 
         let ch = match self.current() {
             Some(value) => value,
-            None => return Ok(Token::Eof),
+            None => return self.make_token(TokenType::Eof, ""),
         };
+
+        self.column += 1;
 
         match ch {
             '+' => {
                 self.advance();
-                Ok(Token::Plus)
+                self.make_token(TokenType::Plus, "+")
             }
             '-' => {
                 self.advance();
-                Ok(Token::Minus)
+                self.make_token(TokenType::Minus, "-")
             }
             '*' => {
                 self.advance();
-                Ok(Token::Star)
+                self.make_token(TokenType::Star, "*")
             }
             '/' => {
                 self.advance();
-                Ok(Token::Slash)
+                self.make_token(TokenType::Slash, "/")
             }
             '<' => {
                 self.advance();
-                Ok(Token::LessThan)
+                self.make_token(TokenType::LessThan, "<")
             }
             '>' => {
                 self.advance();
-                Ok(Token::GreaterThan)
+                self.make_token(TokenType::GreaterThan, ">")
             }
             '(' => {
                 self.advance();
-                Ok(Token::LeftParen)
+                self.make_token(TokenType::LeftParen, "(")
             }
             ')' => {
                 self.advance();
-                Ok(Token::RightParen)
+                self.make_token(TokenType::RightParen, ")")
             }
             '|' => self.maps_to(),
             ':' => self.binding(),
@@ -121,8 +142,11 @@ impl Scanner {
                 self.advance();
                 if ch == '\n' {
                     self.line += 1;
+                    self.column = 1;
+                    self.make_token(TokenType::EndStmt, "\n")
+                } else {
+                    self.make_token(TokenType::EndStmt, ";")
                 }
-                Ok(Token::EndStmt)
             }
             ' ' | '\r' | '\t' => {
                 self.advance();
@@ -132,7 +156,10 @@ impl Scanner {
             _ if ch.is_alphabetic() => self.identifier(),
             _ => {
                 self.advance();
-                Err(format!("[Line {}] Unexpected character: {}", self.line, ch))
+                Err(format!(
+                    "[Line {}, Col {}] Unexpected character: {}",
+                    self.line, self.column, ch
+                ))
             }
         }
     }
@@ -162,11 +189,11 @@ impl Scanner {
         let lexeme = &self.source[self.start..self.current];
         let value = lexeme.parse::<f64>().map_err(|e| {
             format!(
-                "[Line {}] Failed to parse '{}' as a number: {}",
-                self.line, lexeme, e
+                "[Line {}, Col {}] Failed to parse '{}' as a number: {}",
+                self.line, self.column, lexeme, e
             )
         })?;
-        Ok(Token::Number(value))
+        self.make_token(TokenType::Number(value), lexeme)
     }
 
     fn identifier(&mut self) -> Result<Token, String> {
@@ -181,26 +208,26 @@ impl Scanner {
 
         let lexeme = &self.source[self.start..self.current];
         match lexeme {
-            "if" => Ok(Token::If),
-            "then" => Ok(Token::Then),
-            "else" => Ok(Token::Else),
-            _ => Ok(Token::Identifier(lexeme.to_string())),
+            "if" => self.make_token(TokenType::If, lexeme),
+            "then" => self.make_token(TokenType::Then, lexeme),
+            "else" => self.make_token(TokenType::Else, lexeme),
+            _ => self.make_token(TokenType::Identifier(lexeme.to_string()), lexeme),
         }
     }
 
     fn maps_to(&mut self) -> Result<Token, String> {
         // symbol |->
-        let symbol = &self.source[self.start..self.current + 3];
-        match symbol {
+        let lexeme = &self.source[self.start..self.current + 3];
+        match lexeme {
             "|->" => {
                 self.advance_by(3);
-                Ok(Token::MapsTo)
+                self.make_token(TokenType::MapsTo, "|->")
             }
             _ => {
                 self.advance();
                 Err(format!(
-                    "[Line {}] Expected a |-> (MapsTo) symbol",
-                    self.line
+                    "[Line {}, Col {}] Expected a |-> (MapsTo) symbol",
+                    self.line, self.column
                 ))
             }
         }
@@ -212,13 +239,13 @@ impl Scanner {
         match symbol {
             ":=" => {
                 self.advance_by(2);
-                Ok(Token::Binding)
+                self.make_token(TokenType::Binding, ":=")
             }
             _ => {
                 self.advance();
                 Err(format!(
-                    "[Line {}] Expected a := (Binding) symbol",
-                    self.line
+                    "[Line {}, Col {}] Expected a := (Binding) symbol",
+                    self.line, self.column
                 ))
             }
         }
@@ -237,25 +264,52 @@ impl Scanner {
         }
 
         if !is_terminated {
-            return Err(format!("[Line {}] Unterminated string literal", self.line));
+            return Err(format!(
+                "[Line {}, Col {}] Unterminated string literal",
+                self.line, self.column
+            ));
         }
 
         let str_start = self.start + 1; // after the opening "
         let str_end = self.current - 1; // the closing "
         let lexeme = &self.source[str_start..str_end];
-        Ok(Token::String(lexeme.to_string()))
+        self.make_token(TokenType::String(lexeme.to_string()), lexeme)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Token::*;
+    use TokenType::*;
 
     // testing helper
     fn assert_scan(input: &str, expected: Vec<Token>) {
         let actual = Scanner::new(input).scan().unwrap();
-        assert_eq!(actual, expected, "Failed on input: {input}");
+
+        // check length first
+        assert_eq!(
+            actual.len(),
+            expected.len(),
+            "Token count mismatch for input: {input}"
+        );
+
+        // compare only the kind field
+        for (i, (act, exp)) in actual.iter().zip(expected.iter()).enumerate() {
+            assert_eq!(
+                act.kind, exp.kind,
+                "Token mismatch at index {i} for input: {input}"
+            );
+        }
+    }
+
+    // simplified token helper
+    fn make_token(kind: TokenType) -> Token {
+        Token {
+            kind,
+            lexeme: std::string::String::new(),
+            line: 1,   // placeholder
+            column: 1, // placeholder
+        }
     }
 
     #[test]
@@ -263,15 +317,15 @@ mod tests {
         assert_scan(
             "f := x |-> 2 * x;",
             vec![
-                Identifier("f".to_string()),
-                Binding,
-                Identifier("x".to_string()),
-                MapsTo,
-                Number(2.0),
-                Star,
-                Identifier("x".to_string()),
-                EndStmt,
-                Eof,
+                make_token(Identifier("f".to_string())),
+                make_token(Binding),
+                make_token(Identifier("x".to_string())),
+                make_token(MapsTo),
+                make_token(Number(2.0)),
+                make_token(Star),
+                make_token(Identifier("x".to_string())),
+                make_token(EndStmt),
+                make_token(Eof),
             ],
         );
     }
@@ -281,13 +335,13 @@ mod tests {
         assert_scan(
             "x := 5.0; y \n",
             vec![
-                Identifier("x".to_string()),
-                Binding,
-                Number(5.0),
-                EndStmt,
-                Identifier("y".to_string()),
-                EndStmt,
-                Eof,
+                make_token(Identifier("x".to_string())),
+                make_token(Binding),
+                make_token(Number(5.0)),
+                make_token(EndStmt),
+                make_token(Identifier("y".to_string())),
+                make_token(EndStmt),
+                make_token(Eof),
             ],
         );
     }
@@ -297,23 +351,26 @@ mod tests {
         assert_scan(
             "+ - * / < > ( ) ;",
             vec![
-                Plus,
-                Minus,
-                Star,
-                Slash,
-                LessThan,
-                GreaterThan,
-                LeftParen,
-                RightParen,
-                EndStmt,
-                Eof,
+                make_token(Plus),
+                make_token(Minus),
+                make_token(Star),
+                make_token(Slash),
+                make_token(LessThan),
+                make_token(GreaterThan),
+                make_token(LeftParen),
+                make_token(RightParen),
+                make_token(EndStmt),
+                make_token(Eof),
             ],
         );
     }
 
     #[test]
     fn test_multi_char_symbols() {
-        assert_scan(":= |->", vec![Binding, MapsTo, Eof]);
+        assert_scan(
+            ":= |->",
+            vec![make_token(Binding), make_token(MapsTo), make_token(Eof)],
+        );
     }
 
     #[test]
@@ -321,12 +378,12 @@ mod tests {
         assert_scan(
             "123 45.67 .5 -0.5",
             vec![
-                Number(123.0),
-                Number(45.67),
-                Number(0.5),
-                Minus,
-                Number(0.5),
-                Eof,
+                make_token(Number(123.0)),
+                make_token(Number(45.67)),
+                make_token(Number(0.5)),
+                make_token(Minus),
+                make_token(Number(0.5)),
+                make_token(Eof),
             ],
         );
     }
@@ -336,12 +393,12 @@ mod tests {
         assert_scan(
             "if then else iffy then_else",
             vec![
-                If,
-                Then,
-                Else,
-                Identifier("iffy".to_string()),
-                Identifier("then_else".to_string()),
-                Eof,
+                make_token(If),
+                make_token(Then),
+                make_token(Else),
+                make_token(Identifier("iffy".to_string())),
+                make_token(Identifier("then_else".to_string())),
+                make_token(Eof),
             ],
         );
     }
@@ -351,22 +408,22 @@ mod tests {
         assert_scan(
             "a:=b|->if(n>0)then x else y;",
             vec![
-                Identifier("a".to_string()),
-                Binding,
-                Identifier("b".to_string()),
-                MapsTo,
-                If,
-                LeftParen,
-                Identifier("n".to_string()),
-                GreaterThan,
-                Number(0.0),
-                RightParen,
-                Then,
-                Identifier("x".to_string()),
-                Else,
-                Identifier("y".to_string()),
-                EndStmt,
-                Eof,
+                make_token(Identifier("a".to_string())),
+                make_token(Binding),
+                make_token(Identifier("b".to_string())),
+                make_token(MapsTo),
+                make_token(If),
+                make_token(LeftParen),
+                make_token(Identifier("n".to_string())),
+                make_token(GreaterThan),
+                make_token(Number(0.0)),
+                make_token(RightParen),
+                make_token(Then),
+                make_token(Identifier("x".to_string())),
+                make_token(Else),
+                make_token(Identifier("y".to_string())),
+                make_token(EndStmt),
+                make_token(Eof),
             ],
         );
     }
@@ -376,10 +433,10 @@ mod tests {
         assert_scan(
             "msg := \"hello\"",
             vec![
-                Identifier("msg".to_string()),
-                Binding,
-                Token::String("hello".to_string()),
-                Eof,
+                make_token(Identifier("msg".to_string())),
+                make_token(Binding),
+                make_token(TokenType::String("hello".to_string())),
+                make_token(Eof),
             ],
         );
     }
@@ -389,17 +446,17 @@ mod tests {
         assert_scan(
             "   x     :=   \t   10  \n",
             vec![
-                Identifier("x".to_string()),
-                Binding,
-                Number(10.0),
-                EndStmt,
-                Eof,
+                make_token(Identifier("x".to_string())),
+                make_token(Binding),
+                make_token(Number(10.0)),
+                make_token(EndStmt),
+                make_token(Eof),
             ],
         );
     }
 
     #[test]
     fn test_empty() {
-        assert_scan("", vec![Eof]);
+        assert_scan("", vec![make_token(Eof)]);
     }
 }
