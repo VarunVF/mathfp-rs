@@ -142,7 +142,7 @@ impl Scanner {
                 self.advance();
                 if ch == '\n' {
                     self.line += 1;
-                    self.column = 1;
+                    self.column = 0;
                     self.make_token(TokenType::EndStmt, "\n")
                 } else {
                     self.make_token(TokenType::EndStmt, ";")

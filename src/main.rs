@@ -15,20 +15,15 @@ fn run(source: &str) -> Result<(), String> {
         .scan()
         .map_err(|errors| token::Scanner::report(&errors))?;
 
-    // tokens.iter()
-    //     .for_each(|token| println!("Read token: {:?}", token));
-
     let program = parser::Parser::new(tokens)
         .parse()
         .map_err(|errors| parser::Parser::report(&errors))?;
 
-    // println!("Program: {:?}", program);
-
-    if let ast::Expr::Program { statements } = program {
-        for stmt in statements {
-            let result = eval::evaluate(stmt);
-            println!("{result}");
-        }
+    if let ast::Expr::Program { ref statements } = program
+        && !statements.is_empty()
+    {
+        let result = eval::evaluate(program);
+        println!("{result}");
     }
 
     Ok(())

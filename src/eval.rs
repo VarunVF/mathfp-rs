@@ -3,6 +3,13 @@ use crate::token::TokenType;
 
 pub fn evaluate(expr: Expr) -> f64 {
     match expr {
+        Expr::Program { statements } => {
+            let mut result = 0.0;
+            for stmt in statements {
+                result = evaluate(stmt);
+            }
+            result
+        }
         Expr::Literal(LiteralValue::Number(n)) => n,
         Expr::Binary { left, op, right } => {
             let l = evaluate(*left);
