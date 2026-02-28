@@ -18,7 +18,9 @@ fn run(source: &str) -> Result<(), String> {
     // tokens.iter()
     //     .for_each(|token| println!("Read token: {:?}", token));
 
-    let program = parser::Parser::new(tokens).parse()?;
+    let program = parser::Parser::new(tokens)
+        .parse()
+        .map_err(|errors| parser::Parser::report(&errors))?;
 
     // println!("Program: {:?}", program);
 

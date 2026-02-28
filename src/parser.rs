@@ -11,7 +11,11 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Result<Expr, String> {
+    pub fn report(errors: &[String]) -> String {
+        format!("Parser errors:\n{}", errors.join("\n"))
+    }
+
+    pub fn parse(&mut self) -> Result<Expr, Vec<String>> {
         self.program()
     }
 
@@ -46,21 +50,41 @@ impl Parser {
     fn is_at_end(&self) -> bool {
         match self.current() {
             Some(token) => token.kind == TokenType::Eof,
-            None => unreachable!(),
+            None => true,
         }
     }
 
-    pub fn program(&mut self) -> Result<Expr, String> {
+    /// Skips to the beginning of the next statement.
+    /// This is used when a parse error is found to avoid cascading errors.
+    fn synchronise(&mut self) {
+        while let Some(kind) = self.current_kind() {
+            match kind {
+                TokenType::EndStmt | TokenType::Eof => break,
+                _ => self.advance(),
+            }
+        }
+    }
+
+    pub fn program(&mut self) -> Result<Expr, Vec<String>> {
         let mut statements = vec![];
+        let mut errors = vec![];
 
         while !self.is_at_end() {
-            match self.statement()? {
-                Expr::Empty => continue,
-                stmt => statements.push(stmt),
+            match self.statement() {
+                Ok(Expr::Empty) => continue,
+                Ok(stmt) => statements.push(stmt),
+                Err(message) => {
+                    errors.push(message);
+                    self.synchronise();
+                }
             }
         }
 
-        Ok(Expr::Program { statements })
+        if errors.is_empty() {
+            Ok(Expr::Program { statements })
+        } else {
+            Err(errors)
+        }
     }
 
     fn statement(&mut self) -> Result<Expr, String> {
