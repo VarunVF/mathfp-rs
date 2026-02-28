@@ -73,7 +73,7 @@ impl Parser {
                     "Expected ; or newline after expression, found {:?}",
                     kind
                 )),
-                None => unreachable!(),
+                None => Err("Expected ; or newline after expression".to_string()),
             },
         }
     }
@@ -143,17 +143,16 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expr, String> {
-        if let Some(kind) = self.current_kind() {
-            match kind {
-                TokenType::Number(value) => {
-                    self.advance();
-                    Ok(Expr::Literal(LiteralValue::Number(value)))
-                }
-                TokenType::LeftParen => self.grouping(),
-                _ => self.make_error(&format!("Expected a primary expression, found {:?}", kind)),
+        match self.current_kind() {
+            Some(TokenType::Number(value)) => {
+                self.advance();
+                Ok(Expr::Literal(LiteralValue::Number(value)))
             }
-        } else {
-            self.make_error("Expected an expression")
+            Some(TokenType::LeftParen) => self.grouping(),
+            Some(kind) => {
+                self.make_error(&format!("Expected a primary expression, found {:?}", kind))
+            }
+            None => self.make_error("Expected an expression"),
         }
     }
 
