@@ -57,15 +57,11 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expr, String> {
-        if let Some(token) = self.current() {
-            match token {
-                Token::Number(_) => self.binary_expr(),
-                Token::EndStmt => self.empty_expr(),
-                Token::Eof => unreachable!(),
-                _ => Err(format!("Unexpected token: {:?}", token)),
-            }
-        } else {
-            Err("Expected an expression".to_string())
+        match self.current() {
+            Some(Token::EndStmt) => self.empty_expr(),
+            Some(Token::Eof) => unreachable!(),
+            Some(_) => self.binary_expr(),
+            None => Err("Expected an expression".to_string()),
         }
     }
 
@@ -115,20 +111,37 @@ impl Parser {
     }
 
     fn factor(&mut self) -> Result<Expr, String> {
-        self.number()
+        self.primary()
     }
 
-    fn number(&mut self) -> Result<Expr, String> {
+    fn primary(&mut self) -> Result<Expr, String> {
         if let Some(token) = self.current() {
             match *token {
                 Token::Number(value) => {
                     self.advance();
                     Ok(Expr::Literal(LiteralValue::Number(value)))
                 }
-                _ => Err(format!("Expected a numeric literal, found {:?}", *token)),
+                Token::LeftParen => self.grouping(),
+                _ => Err(format!("Expected a primary expression, found {:?}", *token)),
             }
         } else {
             Err("Expected an expression".to_string())
+        }
+    }
+
+    fn grouping(&mut self) -> Result<Expr, String> {
+        self.advance(); // opening (
+        let expr = self.expression()?;
+        match self.current() {
+            Some(Token::RightParen) => {
+                self.advance(); // closing )
+                Ok(Expr::Grouping(Box::new(expr)))
+            }
+            Some(token) => Err(format!(
+                "Expected ) after parenthesised expression, found {:?}",
+                token
+            )),
+            None => unreachable!(),
         }
     }
 }
@@ -183,10 +196,72 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Parser error: Expected a numeric literal, found Star")]
+    #[should_panic(expected = "Parser error: Expected a primary expression")]
     fn test_invalid_expr() {
         Parser::new(vec![Number(5.0), Plus, Star, Eof])
             .parse()
             .unwrap();
+    }
+
+    #[test]
+    fn test_grouping() {
+        // ((9)*(9))
+        assert_parse(
+            vec![
+                LeftParen,
+                LeftParen,
+                Number(9.0),
+                RightParen,
+                Star,
+                LeftParen,
+                Number(9.0),
+                RightParen,
+                RightParen,
+                Eof,
+            ],
+            Program {
+                statements: vec![Grouping(Box::new(Binary {
+                    left: Box::new(Grouping(Box::new(Literal(LiteralValue::Number(9.0))))),
+                    op: Star,
+                    right: Box::new(Grouping(Box::new(Literal(LiteralValue::Number(9.0))))),
+                }))],
+            },
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected ) after parenthesised expression")]
+    fn test_invalid_grouping_close() {
+        // ((9)*(9
+        Parser::new(vec![
+            LeftParen,
+            LeftParen,
+            Number(9.0),
+            RightParen,
+            Star,
+            LeftParen,
+            Number(9.0),
+            Eof,
+        ])
+        .parse()
+        .unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected ; or newline after expression")]
+    fn test_invalid_grouping_open() {
+        // 9)*(9))
+        Parser::new(vec![
+            Number(9.0),
+            RightParen,
+            Star,
+            LeftParen,
+            Number(9.0),
+            RightParen,
+            RightParen,
+            Eof,
+        ])
+        .parse()
+        .unwrap();
     }
 }

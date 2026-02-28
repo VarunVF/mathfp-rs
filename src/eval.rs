@@ -15,6 +15,7 @@ pub fn evaluate(expr: Expr) -> f64 {
                 _ => unreachable!(),
             }
         }
+        Expr::Grouping(expr) => evaluate(*expr),
         _ => todo!("Handle other expressions"),
     }
 }
