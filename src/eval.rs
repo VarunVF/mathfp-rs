@@ -38,8 +38,8 @@ pub fn evaluate(expr: Expr, env: &mut Environment) -> Result<RuntimeValue, Strin
         Expr::Grouping(expr) => evaluate(*expr, env),
         Expr::Binding { name, expr } => {
             let value = evaluate(*expr, env)?;
-            env.bind(name, value)?;
-            Ok(RuntimeValue::Nil)
+            env.bind(name, value.clone())?;
+            Ok(value)
         }
         Expr::Variable(name) => env
             .resolve(&name)

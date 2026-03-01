@@ -21,9 +21,7 @@ fn run(source: &str, env: &mut runtime::Environment) -> Result<(), String> {
         .map_err(|errors| parser::Parser::report(&errors))?;
 
     let result = eval::evaluate(program, env)?;
-    if !matches!(result, runtime::RuntimeValue::Nil) {
-        runtime::display(&result);
-    }
+    runtime::display(&result);
 
     Ok(())
 }
