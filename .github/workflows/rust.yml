@@ -1,4 +1,4 @@
-name: Rust
+name: CI & Docs
 
 on:
   push:
@@ -6,14 +6,17 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  test:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
     - name: Check Formatting
@@ -24,3 +27,20 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+  
+  deploy-docs:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+    - name: Generate Documentation
+      run: cargo doc --no-deps --all-features
+    - name: Add redirect
+      run: echo '<meta http-equiv="refresh" content="0; url=mathfp/index.html">' > target/doc/index.html
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v4
+      with:
+        path: target/doc
+    - name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v4
