@@ -48,3 +48,137 @@ pub fn evaluate(expr: Expr, env: &mut Environment) -> Result<RuntimeValue, Strin
         kind => todo!("Handle other expressions, {:?} not yet implemented", kind),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::token::{Token, TokenType};
+
+    // Helper to create a dummy token for operators
+    fn op_token(kind: TokenType) -> Token {
+        Token {
+            kind,
+            lexeme: String::new(),
+            line: 1,
+            column: 1,
+        }
+    }
+
+    #[test]
+    fn test_literals() {
+        let mut env = Environment::new();
+
+        let num_res = evaluate(Expr::Literal(LiteralValue::Number(42.0)), &mut env).unwrap();
+        assert_eq!(num_res, RuntimeValue::Number(42.0));
+
+        let str_res = evaluate(
+            Expr::Literal(LiteralValue::String("MathFP".into())),
+            &mut env,
+        )
+        .unwrap();
+        assert_eq!(str_res, RuntimeValue::String("MathFP".into()));
+    }
+
+    #[test]
+    fn test_binary_arithmetic() {
+        let mut env = Environment::new();
+
+        // 10 + 5
+        let expr = Expr::Binary {
+            left: Box::new(Expr::Literal(LiteralValue::Number(10.0))),
+            op: op_token(TokenType::Plus),
+            right: Box::new(Expr::Literal(LiteralValue::Number(5.0))),
+        };
+        assert_eq!(
+            evaluate(expr, &mut env).unwrap(),
+            RuntimeValue::Number(15.0)
+        );
+    }
+
+    #[test]
+    fn test_boolean_to_number_coercion() {
+        let mut env = Environment::new();
+
+        // true + 1 (should be 1.0 + 1.0 = 2.0)
+        let expr = Expr::Binary {
+            left: Box::new(Expr::Variable("true".into())),
+            op: op_token(TokenType::Plus),
+            right: Box::new(Expr::Literal(LiteralValue::Number(1.0))),
+        };
+        assert_eq!(evaluate(expr, &mut env).unwrap(), RuntimeValue::Number(2.0));
+    }
+
+    #[test]
+    fn test_bindings_and_variables() {
+        let mut env = Environment::new();
+
+        // x := 100
+        let bind_expr = Expr::Binding {
+            name: "x".into(),
+            expr: Box::new(Expr::Literal(LiteralValue::Number(100.0))),
+        };
+        evaluate(bind_expr, &mut env).unwrap();
+
+        // resolve x
+        let var_expr = Expr::Variable("x".into());
+        assert_eq!(
+            evaluate(var_expr, &mut env).unwrap(),
+            RuntimeValue::Number(100.0)
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot modify variable")]
+    fn test_constant_protection() {
+        let mut env = Environment::new(); // Environment::new() adds "true" as a constant
+
+        // true := 5 (should fail)
+        let expr = Expr::Binding {
+            name: "true".into(),
+            expr: Box::new(Expr::Literal(LiteralValue::Number(5.0))),
+        };
+
+        evaluate(expr, &mut env).unwrap();
+    }
+
+    #[test]
+    fn test_unresolved_variable() {
+        let mut env = Environment::new();
+        let expr = Expr::Variable("x".into());
+
+        let result = evaluate(expr, &mut env);
+        assert_eq!(result.unwrap_err(), "Name 'x' is not defined");
+    }
+
+    #[test]
+    fn test_grouping() {
+        let mut env = Environment::new();
+        // (10)
+        let expr = Expr::Grouping(Box::new(Expr::Literal(LiteralValue::Number(10.0))));
+        assert_eq!(
+            evaluate(expr, &mut env).unwrap(),
+            RuntimeValue::Number(10.0)
+        );
+    }
+
+    #[test]
+    fn test_program_sequence() {
+        let mut env = Environment::new();
+        // a := 1; a + 2;
+        let prog = Expr::Program {
+            statements: vec![
+                Expr::Binding {
+                    name: "a".into(),
+                    expr: Box::new(Expr::Literal(LiteralValue::Number(1.0))),
+                },
+                Expr::Binary {
+                    left: Box::new(Expr::Variable("a".into())),
+                    op: op_token(TokenType::Plus),
+                    right: Box::new(Expr::Literal(LiteralValue::Number(2.0))),
+                },
+            ],
+        };
+        // Program should return the result of the last statement (3.0)
+        assert_eq!(evaluate(prog, &mut env).unwrap(), RuntimeValue::Number(3.0));
+    }
+}
