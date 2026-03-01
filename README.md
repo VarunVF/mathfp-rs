@@ -4,6 +4,8 @@
 
 **MathFP** is a functional, expression-oriented programming language designed for mathematical modeling and rapid prototyping. Built with Rust, it prioritizes safety and mathematical correctness.
 
+[Online Documentation](https://varunvf.github.io/mathfp-rs)
+
 ## Features
 
 * **Expression-First:** Everything in MathFP is an expression, which allows for more elegant composition of logic.
@@ -72,7 +74,7 @@ cargo test
 ### Documentation
 
 The project documentation is automatically updated on every push to `main`.
-**[View the Onliine Documentation](https://varunvf.github.io/mathfp-rs)**
+**[View the online documentation](https://varunvf.github.io/mathfp-rs)**
 
 You can also view the local version by running:
 ```bash
