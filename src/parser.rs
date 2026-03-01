@@ -29,6 +29,12 @@ impl Parser {
             .map(|token| token.kind.clone())
     }
 
+    fn lookahead_kind(&self) -> Option<TokenType> {
+        self.tokens
+            .get(self.current + 1)
+            .map(|token| token.kind.clone())
+    }
+
     fn advance(&mut self) {
         self.current += 1;
     }
@@ -106,7 +112,10 @@ impl Parser {
         match self.current_kind() {
             Some(TokenType::EndStmt) => self.empty_expr(),
             Some(TokenType::Eof) => unreachable!(),
-            Some(_) => self.binary_expr(),
+            Some(_) => match self.lookahead_kind() {
+                Some(TokenType::Binding) => self.binding(),
+                _ => self.binary_expr(),
+            },
             None => self.make_error("Expected an expression"),
         }
     }
@@ -114,6 +123,27 @@ impl Parser {
     fn empty_expr(&mut self) -> Result<Expr, String> {
         self.advance();
         Ok(Expr::Empty)
+    }
+
+    fn binding(&mut self) -> Result<Expr, String> {
+        let name = match self.primary()? {
+            Expr::Variable(name) => name,
+            _ => return self.make_error("Expected an identifier to bind a value"),
+        };
+        let expr = match self.current_kind() {
+            Some(TokenType::Binding) => {
+                self.advance();
+                self.expression()?
+            }
+            Some(kind) => {
+                self.make_error(&format!("Expected a binding expression, found {:?}", kind))?
+            }
+            None => self.make_error("Expected an expression")?,
+        };
+        Ok(Expr::Binding {
+            name,
+            expr: Box::new(expr),
+        })
     }
 
     fn binary_expr(&mut self) -> Result<Expr, String> {
@@ -171,6 +201,14 @@ impl Parser {
             Some(TokenType::Number(value)) => {
                 self.advance();
                 Ok(Expr::Literal(LiteralValue::Number(value)))
+            }
+            Some(TokenType::Identifier(name)) => {
+                self.advance();
+                Ok(Expr::Variable(name))
+            }
+            Some(TokenType::String(message)) => {
+                self.advance();
+                Ok(Expr::Literal(LiteralValue::String(message.clone())))
             }
             Some(TokenType::LeftParen) => self.grouping(),
             Some(kind) => {

@@ -1,6 +1,7 @@
 mod ast;
 mod eval;
 mod parser;
+mod runtime;
 mod token;
 
 use std::fs;
@@ -10,7 +11,7 @@ fn usage() {
     println!("Usage: mathfp [file_name]");
 }
 
-fn run(source: &str) -> Result<(), String> {
+fn run(source: &str, env: &mut runtime::Environment) -> Result<(), String> {
     let tokens = token::Scanner::new(source)
         .scan()
         .map_err(|errors| token::Scanner::report(&errors))?;
@@ -19,11 +20,9 @@ fn run(source: &str) -> Result<(), String> {
         .parse()
         .map_err(|errors| parser::Parser::report(&errors))?;
 
-    if let ast::Expr::Program { ref statements } = program
-        && !statements.is_empty()
-    {
-        let result = eval::evaluate(program);
-        println!("{result}");
+    let result = eval::evaluate(program, env)?;
+    if !matches!(result, runtime::RuntimeValue::Nil) {
+        runtime::display(&result);
     }
 
     Ok(())
@@ -33,12 +32,15 @@ fn run_file(file_name: &str) -> Result<(), String> {
     let contents = fs::read_to_string(file_name)
         .map_err(|e| format!("Could not read file {file_name}: {e}"))?;
 
-    let _ = run(&contents).map_err(|e| eprintln!("{e}"));
+    let mut env = runtime::Environment::new();
+    let _ = run(&contents, &mut env).map_err(|e| eprintln!("{e}"));
 
     Ok(())
 }
 
 fn run_repl() -> Result<(), String> {
+    let mut env = runtime::Environment::new();
+
     loop {
         print!(">>> ");
         io::stdout()
@@ -53,7 +55,7 @@ fn run_repl() -> Result<(), String> {
         match bytes_read {
             0 => return Ok(()), // EOF
             _ => {
-                let _ = run(&input).map_err(|e| eprintln!("{e}"));
+                let _ = run(&input, &mut env).map_err(|e| eprintln!("{e}"));
             }
         };
     }

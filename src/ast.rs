@@ -1,6 +1,6 @@
 use crate::token::Token;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[allow(dead_code)] // until parsing is finished
 pub enum Expr {
     Program {
@@ -38,7 +38,7 @@ pub enum Expr {
     Empty,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[allow(dead_code)] // until parsing is finished
 pub enum LiteralValue {
     Number(f64),
