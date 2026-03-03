@@ -41,12 +41,12 @@ fn test_lambda() {
 }
 
 #[test]
-fn test_lexical_scoping() {
+fn test_outer_scope_binding_change() {
     let env = Rc::new(RefCell::new(Environment::new()));
     let input = "
         x := 10;
         f := y |-> x + y;
-        x := 20; 
+        x = 20;
         f(5)
     ";
     // If lexical scoping works, f(5) uses x=20 (the latest global).
@@ -160,4 +160,59 @@ fn test_closure_equality() {
         add5, add10,
         "Functions with different captured closures should not be equal"
     );
+}
+
+#[test]
+fn test_lexical_scope_isolation() {
+    let env = Rc::new(RefCell::new(Environment::new()));
+
+    let input = "
+        x := 10;
+        f := n |-> x + n;
+        
+        caller := dummy |-> {
+            x := 100;
+            f(5)
+        };
+        
+        caller(nil)
+    ";
+
+    // If lexical, it must be 15.0 (10 + 5)
+    assert_eq!(run(input, Rc::clone(&env)), RuntimeValue::Number(15.0));
+}
+
+#[test]
+fn test_variable_scope() {
+    let env = Rc::new(RefCell::new(Environment::new()));
+
+    let input = "
+        x := 5;
+        (dummy |-> x = 7)(nil);
+        x
+    ";
+
+    assert_eq!(run(input, Rc::clone(&env)), RuntimeValue::Number(7.0));
+}
+
+#[test]
+fn test_closure_mutation_counter() {
+    let env = Rc::new(RefCell::new(Environment::new()));
+
+    let input = "
+        make_counter := start |-> {
+            val := start;
+            n |-> { 
+                val = val + n; 
+                val 
+            }
+        };
+        c := make_counter(0);
+        c(1);
+        c(1);
+        c(5)
+    ";
+
+    // The final call c(5) should return 1 + 1 + 5 = 7
+    assert_eq!(run(input, Rc::clone(&env)), RuntimeValue::Number(7.0));
 }

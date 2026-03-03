@@ -6,6 +6,9 @@ pub enum Expr {
     Program {
         statements: Vec<Expr>,
     },
+    FunctionBody {
+        statements: Vec<Expr>,
+    },
     Binary {
         left: Box<Expr>,
         op: Token,
@@ -17,6 +20,10 @@ pub enum Expr {
     },
     Grouping(Box<Expr>),
     Variable(String),
+    Assign {
+        name: String,
+        expr: Box<Expr>,
+    },
     Binding {
         name: String,
         expr: Box<Expr>,

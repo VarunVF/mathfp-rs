@@ -116,8 +116,8 @@ impl Environment {
     }
 
     pub fn bind(&mut self, name: String, value: RuntimeValue) -> Result<(), String> {
-        if self.bindings.contains_key(&name) && self.bindings[&name].is_constant {
-            return Err(format!("Cannot modify variable '{name}'"));
+        if self.bindings.contains_key(&name) {
+            return Err(format!("Cannot redeclare variable '{name}'"));
         }
         self.bindings.insert(
             name,
@@ -127,6 +127,27 @@ impl Environment {
             },
         );
         Ok(())
+    }
+
+    pub fn assign(&mut self, name: String, value: RuntimeValue) -> Result<(), String> {
+        if let Some(binding) = self.bindings.get(&name) {
+            if binding.is_constant {
+                Err(format!("Cannot modify constant variable '{name}'"))
+            } else {
+                self.bindings.insert(
+                    name,
+                    Binding {
+                        value,
+                        is_constant: false,
+                    },
+                );
+                Ok(())
+            }
+        } else if let Some(parent) = &self.parent {
+            parent.borrow_mut().assign(name, value)
+        } else {
+            Err(format!("Name '{name}' is not defined"))
+        }
     }
 
     pub fn resolve(&self, name: &str) -> Option<RuntimeValue> {
@@ -200,7 +221,7 @@ mod tests {
     fn test_allow_overwriting_variables() {
         let mut mut_env = Environment::new();
         let _ = mut_env.bind("x".into(), RuntimeValue::Number(1.0));
-        let _ = mut_env.bind("x".into(), RuntimeValue::Number(2.0)); // Should work
+        let _ = mut_env.assign("x".into(), RuntimeValue::Number(2.0)); // Should work
 
         assert_eq!(mut_env.resolve("x"), Some(RuntimeValue::Number(2.0)));
     }

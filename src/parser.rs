@@ -158,6 +158,7 @@ impl Parser {
             Some(TokenType::Eof) => unreachable!(),
             Some(TokenType::If) => self.if_expr(),
             Some(_) => match self.lookahead_kind() {
+                Some(TokenType::Equal) => self.assignment(),
                 Some(TokenType::Binding) => self.binding(),
                 Some(TokenType::MapsTo) => self.function_def(),
                 _ => self.binary_expr(),
@@ -193,6 +194,28 @@ impl Parser {
         })
     }
 
+    fn assignment(&mut self) -> Result<Expr, String> {
+        let name = match self.primary()? {
+            Expr::Variable(name) => name,
+            _ => return self.make_error("Expected an identifier to assign a value"),
+        };
+        let expr = match self.current_kind() {
+            Some(TokenType::Equal) => {
+                self.advance();
+                self.expression()?
+            }
+            Some(kind) => self.make_error(&format!(
+                "Expected an assignment expression, found {:?}",
+                kind
+            ))?,
+            None => self.make_error("Expected an expression")?,
+        };
+        Ok(Expr::Assign {
+            name,
+            expr: Box::new(expr),
+        })
+    }
+
     fn binding(&mut self) -> Result<Expr, String> {
         let name = match self.primary()? {
             Expr::Variable(name) => name,
@@ -222,9 +245,28 @@ impl Parser {
         self.advance();
 
         self.consume(TokenType::MapsTo)?;
-        let body = Box::new(self.expression()?);
+        let body = Box::new(self.function_body()?);
 
         Ok(Expr::FunctionDef { param, body })
+    }
+
+    fn function_body(&mut self) -> Result<Expr, String> {
+        if self.matches(TokenType::LeftBrace) {
+            self.advance();
+
+            let mut statements: Vec<Expr> = vec![];
+            while !self.matches(TokenType::RightBrace) {
+                let expr = self.expression()?;
+                if !matches!(expr, Expr::Empty) {
+                    statements.push(expr);
+                }
+            }
+            self.advance();
+
+            Ok(Expr::FunctionBody { statements })
+        } else {
+            self.expression()
+        }
     }
 
     fn binary_expr(&mut self) -> Result<Expr, String> {

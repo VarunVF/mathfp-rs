@@ -17,6 +17,9 @@ pub enum TokenType {
     GreaterThan,
     LeftParen,
     RightParen,
+    LeftBrace,
+    RightBrace,
+    Equal,
 
     // Data tokens
     Identifier(String),
@@ -137,6 +140,18 @@ impl Scanner {
             }
             '|' => self.maps_to(),
             ':' => self.binding(),
+            '{' => {
+                self.advance();
+                self.make_token(TokenType::LeftBrace, "{")
+            }
+            '}' => {
+                self.advance();
+                self.make_token(TokenType::RightBrace, "}")
+            }
+            '=' => {
+                self.advance();
+                self.make_token(TokenType::Equal, "=")
+            }
             '"' => self.string(),
             '\n' | ';' => {
                 self.advance();

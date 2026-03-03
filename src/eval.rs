@@ -45,6 +45,11 @@ pub fn evaluate(expr: Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValu
             env.borrow_mut().bind(name, value.clone())?;
             Ok(value)
         }
+        Expr::Assign { name, expr } => {
+            let value = evaluate(*expr, Rc::clone(&env))?;
+            env.borrow_mut().assign(name, value.clone())?;
+            Ok(value)
+        }
         Expr::Variable(name) => env
             .borrow()
             .resolve(&name)
@@ -66,6 +71,13 @@ pub fn evaluate(expr: Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValu
             body: *body,
             closure: Rc::clone(&env),
         }),
+        Expr::FunctionBody { statements } => {
+            let mut res = Ok(RuntimeValue::Nil);
+            for stmt in statements {
+                res = evaluate(stmt, Rc::clone(&env));
+            }
+            res
+        }
         Expr::FunctionCall { func, arg } => {
             let function = evaluate(*func, Rc::clone(&env))?;
 
@@ -89,6 +101,7 @@ pub fn evaluate(expr: Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValu
                 _ => Err("Only functions are callable".to_string()),
             }
         }
+        Expr::Empty => unreachable!("The program should never contain Empty expressions"),
         kind => todo!("Handle other expressions, {:?} not yet implemented", kind),
     }
 }
@@ -187,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Cannot modify variable")]
+    #[should_panic(expected = "Cannot redeclare variable")]
     fn test_constant_protection() {
         let env = Rc::new(RefCell::new(Environment::new())); // Environment::new() adds "true" as a constant
 

@@ -1,0 +1,7 @@
+make_counter := start |-> {
+    val := start;
+    n |-> { val = val + n; val }
+};
+c := make_counter(0);
+c(1);
+c(1);
