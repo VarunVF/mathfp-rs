@@ -21,6 +21,12 @@ pub struct Environment {
     bindings: HashMap<String, Binding>,
 }
 
+impl Default for Environment {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Environment {
     pub fn new() -> Self {
         let mut env = Environment {

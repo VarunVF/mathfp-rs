@@ -14,7 +14,8 @@ pub fn evaluate(expr: Expr, env: &mut Environment) -> Result<RuntimeValue, Strin
         Expr::Literal(literal) => match literal {
             LiteralValue::Number(n) => Ok(RuntimeValue::Number(n)),
             LiteralValue::String(msg) => Ok(RuntimeValue::String(msg)),
-            _ => todo!("Handle other literals"),
+            LiteralValue::Nil => Ok(RuntimeValue::Nil),
+            LiteralValue::Boolean(cond) => Ok(RuntimeValue::Boolean(cond)),
         },
         Expr::Binary { left, op, right } => {
             let l = match evaluate(*left, env)? {
@@ -45,7 +46,30 @@ pub fn evaluate(expr: Expr, env: &mut Environment) -> Result<RuntimeValue, Strin
             .resolve(&name)
             .cloned()
             .ok_or(format!("Name '{name}' is not defined")),
+        Expr::If {
+            cond_expr,
+            then_expr,
+            else_expr,
+        } => {
+            // Lazy evaluation of branches
+            if is_truthy(&evaluate(*cond_expr, env)?) {
+                evaluate(*then_expr, env)
+            } else {
+                evaluate(*else_expr, env)
+            }
+        }
         kind => todo!("Handle other expressions, {:?} not yet implemented", kind),
+    }
+}
+
+/// Coerces a RuntimeValue to a bool.
+fn is_truthy(value: &RuntimeValue) -> bool {
+    match value {
+        RuntimeValue::Number(n) => *n != 0.0,
+        RuntimeValue::String(msg) => !msg.is_empty(),
+        RuntimeValue::Boolean(cond) => *cond,
+        RuntimeValue::Function { .. } => true,
+        RuntimeValue::Nil => false,
     }
 }
 
@@ -158,6 +182,33 @@ mod tests {
         assert_eq!(
             evaluate(expr, &mut env).unwrap(),
             RuntimeValue::Number(10.0)
+        );
+    }
+
+    #[test]
+    fn test_if_basic_branching() {
+        let mut env = Environment::new();
+
+        // if true then 10 else 20
+        let expr = Expr::If {
+            cond_expr: Box::new(Expr::Variable("true".into())),
+            then_expr: Box::new(Expr::Literal(LiteralValue::Number(10.0))),
+            else_expr: Box::new(Expr::Literal(LiteralValue::Number(20.0))),
+        };
+        assert_eq!(
+            evaluate(expr, &mut env).unwrap(),
+            RuntimeValue::Number(10.0)
+        );
+
+        // if false then 10 else 20
+        let expr_false = Expr::If {
+            cond_expr: Box::new(Expr::Variable("false".into())),
+            then_expr: Box::new(Expr::Literal(LiteralValue::Number(10.0))),
+            else_expr: Box::new(Expr::Literal(LiteralValue::Number(20.0))),
+        };
+        assert_eq!(
+            evaluate(expr_false, &mut env).unwrap(),
+            RuntimeValue::Number(20.0)
         );
     }
 

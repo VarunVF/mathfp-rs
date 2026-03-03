@@ -39,6 +39,7 @@ impl Parser {
         self.current += 1;
     }
 
+    /// Creates an error `Result` that quotes the current line and column number.
     fn make_error(&self, message: &str) -> Result<Expr, String> {
         let default = &Token {
             kind: TokenType::Eof,
@@ -69,6 +70,49 @@ impl Parser {
                 _ => self.advance(),
             }
         }
+    }
+
+    /// Checks if the current token matches the expected `TokenType`.
+    /// If it matches, advances past the token and returns `Ok`, otherwise returns `Err`.
+    /// Also returns `Err` if a token could not be found.
+    fn consume(&mut self, expected_kind: TokenType) -> Result<(), String> {
+        if let Some(found_kind) = self.current_kind() {
+            if found_kind == expected_kind {
+                self.advance();
+                Ok(())
+            } else {
+                // Ignore the success value as it is definitely Err
+                self.make_error(&format!(
+                    "Expected token of type {:?}, found {:?}",
+                    expected_kind, found_kind
+                ))
+                .map(|_| ())
+            }
+        } else {
+            self.make_error(&format!(
+                "Expected token of type {:?}, but no token was found",
+                expected_kind
+            ))
+            .map(|_| ())
+        }
+    }
+
+    fn matches(&self, expected_kind: TokenType) -> bool {
+        if let Some(kind) = self.current_kind() {
+            kind == expected_kind
+        } else {
+            false
+        }
+    }
+
+    fn matches_any(&self, expected_kinds: &[TokenType]) -> bool {
+        for kind in expected_kinds {
+            if self.matches(kind.clone()) {
+                return true;
+            }
+        }
+
+        false
     }
 
     pub fn program(&mut self) -> Result<Expr, Vec<String>> {
@@ -103,7 +147,7 @@ impl Parser {
                     "Expected ; or newline after expression, found {:?}",
                     kind
                 )),
-                None => Err("Expected ; or newline after expression".to_string()),
+                None => self.make_error("Expected ; or newline after expression"),
             },
         }
     }
@@ -112,6 +156,7 @@ impl Parser {
         match self.current_kind() {
             Some(TokenType::EndStmt) => self.empty_expr(),
             Some(TokenType::Eof) => unreachable!(),
+            Some(TokenType::If) => self.if_expr(),
             Some(_) => match self.lookahead_kind() {
                 Some(TokenType::Binding) => self.binding(),
                 _ => self.binary_expr(),
@@ -123,6 +168,28 @@ impl Parser {
     fn empty_expr(&mut self) -> Result<Expr, String> {
         self.advance();
         Ok(Expr::Empty)
+    }
+
+    fn if_expr(&mut self) -> Result<Expr, String> {
+        self.consume(TokenType::If)?;
+        let cond_expr = Box::new(self.expression()?);
+
+        self.consume(TokenType::Then)?;
+        let then_expr = Box::new(self.expression()?);
+
+        // else branch is optional
+        let else_expr = if self.matches(TokenType::Else) {
+            self.advance();
+            Box::new(self.expression()?)
+        } else {
+            Box::new(Expr::Literal(LiteralValue::Nil))
+        };
+
+        Ok(Expr::If {
+            cond_expr,
+            then_expr,
+            else_expr,
+        })
     }
 
     fn binding(&mut self) -> Result<Expr, String> {
@@ -149,10 +216,7 @@ impl Parser {
     fn binary_expr(&mut self) -> Result<Expr, String> {
         let mut left = self.term()?;
 
-        while matches!(
-            self.current_kind(),
-            Some(TokenType::Plus | TokenType::Minus)
-        ) {
+        while self.matches_any(&[TokenType::Plus, TokenType::Minus]) {
             let op = match self.current() {
                 Some(op) => op.clone(),
                 None => return self.make_error("Expected a binary operator"),
@@ -172,10 +236,7 @@ impl Parser {
     fn term(&mut self) -> Result<Expr, String> {
         let mut left = self.factor()?;
 
-        while matches!(
-            self.current_kind(),
-            Some(TokenType::Star | TokenType::Slash)
-        ) {
+        while self.matches_any(&[TokenType::Star, TokenType::Slash]) {
             let op = match self.current() {
                 Some(op) => op.clone(),
                 None => return self.make_error("Expected a binary operator"),

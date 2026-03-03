@@ -49,8 +49,13 @@ cargo run -- script.mfp
 Variables are bound using the `:=` operator.
 
 ```mathfp
-x := 10;
-y := x * 5;
+x := 10; y := x * 5
+```
+
+### Conditionals
+
+```mathfp
+if y then (z := 1) else (z := 2)
 ```
 
 ### Functions
