@@ -4,10 +4,13 @@ pub mod parser;
 pub mod runtime;
 pub mod token;
 
-pub fn execute(
-    input: &str,
-    env: &mut runtime::Environment,
-) -> Result<runtime::RuntimeValue, String> {
+pub fn execute(input: &str) -> Result<runtime::RuntimeValue, String> {
+    use runtime::Environment;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    let env: Rc<RefCell<runtime::Environment>> = Rc::new(RefCell::new(Environment::new()));
+
     let tokens = token::Scanner::new(input)
         .scan()
         .map_err(|errors| token::Scanner::report(&errors))?;

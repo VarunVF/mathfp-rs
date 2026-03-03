@@ -1,13 +1,16 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::ast::{Expr, LiteralValue};
 use crate::runtime::{Environment, RuntimeValue};
 use crate::token::TokenType;
 
-pub fn evaluate(expr: Expr, env: &mut Environment) -> Result<RuntimeValue, String> {
+pub fn evaluate(expr: Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     match expr {
         Expr::Program { statements } => {
             let mut result = RuntimeValue::Nil;
             for stmt in statements {
-                result = evaluate(stmt, env)?;
+                result = evaluate(stmt, Rc::clone(&env))?;
             }
             Ok(result)
         }
@@ -18,7 +21,7 @@ pub fn evaluate(expr: Expr, env: &mut Environment) -> Result<RuntimeValue, Strin
             LiteralValue::Boolean(cond) => Ok(RuntimeValue::Boolean(cond)),
         },
         Expr::Binary { left, op, right } => {
-            let l = match evaluate(*left, env)? {
+            let l = match evaluate(*left, Rc::clone(&env))? {
                 RuntimeValue::Number(value) => value,
                 RuntimeValue::Boolean(cond) => (cond as i64) as f64,
                 _ => return Err("Operands for binary expressions must be numbers".to_string()),
@@ -38,13 +41,13 @@ pub fn evaluate(expr: Expr, env: &mut Environment) -> Result<RuntimeValue, Strin
         }
         Expr::Grouping(expr) => evaluate(*expr, env),
         Expr::Binding { name, expr } => {
-            let value = evaluate(*expr, env)?;
-            env.bind(name, value.clone())?;
+            let value = evaluate(*expr, Rc::clone(&env))?;
+            env.borrow_mut().bind(name, value.clone())?;
             Ok(value)
         }
         Expr::Variable(name) => env
+            .borrow()
             .resolve(&name)
-            .cloned()
             .ok_or(format!("Name '{name}' is not defined")),
         Expr::If {
             cond_expr,
@@ -52,10 +55,34 @@ pub fn evaluate(expr: Expr, env: &mut Environment) -> Result<RuntimeValue, Strin
             else_expr,
         } => {
             // Lazy evaluation of branches
-            if is_truthy(&evaluate(*cond_expr, env)?) {
+            if is_truthy(&evaluate(*cond_expr, Rc::clone(&env))?) {
                 evaluate(*then_expr, env)
             } else {
                 evaluate(*else_expr, env)
+            }
+        }
+        Expr::FunctionDef { param, body } => Ok(RuntimeValue::Function {
+            arg_name: param,
+            body: *body,
+            closure: Rc::clone(&env),
+        }),
+        Expr::FunctionCall { func, arg } => {
+            let function = evaluate(*func, Rc::clone(&env))?;
+
+            if let RuntimeValue::Function {
+                arg_name,
+                body,
+                closure,
+            } = function
+            {
+                let arg_value = evaluate(*arg, Rc::clone(&env))?;
+
+                // The parent of the new scope is the closure
+                let local_env = Rc::new(RefCell::new(Environment::with_parent(closure)));
+                local_env.borrow_mut().bind(arg_name, arg_value)?;
+                evaluate(body, local_env)
+            } else {
+                Err("Only functions are callable".to_string())
             }
         }
         kind => todo!("Handle other expressions, {:?} not yet implemented", kind),
@@ -90,14 +117,14 @@ mod tests {
 
     #[test]
     fn test_literals() {
-        let mut env = Environment::new();
+        let env = Rc::new(RefCell::new(Environment::new()));
 
-        let num_res = evaluate(Expr::Literal(LiteralValue::Number(42.0)), &mut env).unwrap();
+        let num_res = evaluate(Expr::Literal(LiteralValue::Number(42.0)), Rc::clone(&env)).unwrap();
         assert_eq!(num_res, RuntimeValue::Number(42.0));
 
         let str_res = evaluate(
             Expr::Literal(LiteralValue::String("MathFP".into())),
-            &mut env,
+            Rc::clone(&env),
         )
         .unwrap();
         assert_eq!(str_res, RuntimeValue::String("MathFP".into()));
@@ -105,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_binary_arithmetic() {
-        let mut env = Environment::new();
+        let env = Rc::new(RefCell::new(Environment::new()));
 
         // 10 + 5
         let expr = Expr::Binary {
@@ -114,14 +141,14 @@ mod tests {
             right: Box::new(Expr::Literal(LiteralValue::Number(5.0))),
         };
         assert_eq!(
-            evaluate(expr, &mut env).unwrap(),
+            evaluate(expr, Rc::clone(&env)).unwrap(),
             RuntimeValue::Number(15.0)
         );
     }
 
     #[test]
     fn test_boolean_to_number_coercion() {
-        let mut env = Environment::new();
+        let env = Rc::new(RefCell::new(Environment::new()));
 
         // true + 1 (should be 1.0 + 1.0 = 2.0)
         let expr = Expr::Binary {
@@ -129,24 +156,27 @@ mod tests {
             op: op_token(TokenType::Plus),
             right: Box::new(Expr::Literal(LiteralValue::Number(1.0))),
         };
-        assert_eq!(evaluate(expr, &mut env).unwrap(), RuntimeValue::Number(2.0));
+        assert_eq!(
+            evaluate(expr, Rc::clone(&env)).unwrap(),
+            RuntimeValue::Number(2.0)
+        );
     }
 
     #[test]
     fn test_bindings_and_variables() {
-        let mut env = Environment::new();
+        let env = Rc::new(RefCell::new(Environment::new()));
 
         // x := 100
         let bind_expr = Expr::Binding {
             name: "x".into(),
             expr: Box::new(Expr::Literal(LiteralValue::Number(100.0))),
         };
-        evaluate(bind_expr, &mut env).unwrap();
+        evaluate(bind_expr, Rc::clone(&env)).unwrap();
 
         // resolve x
         let var_expr = Expr::Variable("x".into());
         assert_eq!(
-            evaluate(var_expr, &mut env).unwrap(),
+            evaluate(var_expr, Rc::clone(&env)).unwrap(),
             RuntimeValue::Number(100.0)
         );
     }
@@ -154,7 +184,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Cannot modify variable")]
     fn test_constant_protection() {
-        let mut env = Environment::new(); // Environment::new() adds "true" as a constant
+        let env = Rc::new(RefCell::new(Environment::new())); // Environment::new() adds "true" as a constant
 
         // true := 5 (should fail)
         let expr = Expr::Binding {
@@ -162,32 +192,32 @@ mod tests {
             expr: Box::new(Expr::Literal(LiteralValue::Number(5.0))),
         };
 
-        evaluate(expr, &mut env).unwrap();
+        evaluate(expr, Rc::clone(&env)).unwrap();
     }
 
     #[test]
     fn test_unresolved_variable() {
-        let mut env = Environment::new();
+        let env = Rc::new(RefCell::new(Environment::new()));
         let expr = Expr::Variable("x".into());
 
-        let result = evaluate(expr, &mut env);
+        let result = evaluate(expr, Rc::clone(&env));
         assert_eq!(result.unwrap_err(), "Name 'x' is not defined");
     }
 
     #[test]
     fn test_grouping() {
-        let mut env = Environment::new();
+        let env = Rc::new(RefCell::new(Environment::new()));
         // (10)
         let expr = Expr::Grouping(Box::new(Expr::Literal(LiteralValue::Number(10.0))));
         assert_eq!(
-            evaluate(expr, &mut env).unwrap(),
+            evaluate(expr, Rc::clone(&env)).unwrap(),
             RuntimeValue::Number(10.0)
         );
     }
 
     #[test]
     fn test_if_basic_branching() {
-        let mut env = Environment::new();
+        let env = Rc::new(RefCell::new(Environment::new()));
 
         // if true then 10 else 20
         let expr = Expr::If {
@@ -196,7 +226,7 @@ mod tests {
             else_expr: Box::new(Expr::Literal(LiteralValue::Number(20.0))),
         };
         assert_eq!(
-            evaluate(expr, &mut env).unwrap(),
+            evaluate(expr, Rc::clone(&env)).unwrap(),
             RuntimeValue::Number(10.0)
         );
 
@@ -207,14 +237,14 @@ mod tests {
             else_expr: Box::new(Expr::Literal(LiteralValue::Number(20.0))),
         };
         assert_eq!(
-            evaluate(expr_false, &mut env).unwrap(),
+            evaluate(expr_false, Rc::clone(&env)).unwrap(),
             RuntimeValue::Number(20.0)
         );
     }
 
     #[test]
     fn test_program_sequence() {
-        let mut env = Environment::new();
+        let env = Rc::new(RefCell::new(Environment::new()));
         // a := 1; a + 2;
         let prog = Expr::Program {
             statements: vec![
@@ -230,6 +260,9 @@ mod tests {
             ],
         };
         // Program should return the result of the last statement (3.0)
-        assert_eq!(evaluate(prog, &mut env).unwrap(), RuntimeValue::Number(3.0));
+        assert_eq!(
+            evaluate(prog, Rc::clone(&env)).unwrap(),
+            RuntimeValue::Number(3.0)
+        );
     }
 }

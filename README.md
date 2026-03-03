@@ -9,7 +9,7 @@
 ## Features
 
 * **Expression-First:** Everything in MathFP is an expression, which allows for more elegant composition of logic.
-* **First-Class Functions:** Functions are first-class values. They can be passed as arguments and returned from functions.
+* **First-Class Functions:** Functions are first-class values. They can be passed as arguments and returned from functions or other expressions.
 * **Rich Error Reporting:** Detailed scanner and parser error messages, including line and column tracking.
 
 ## Getting Started
@@ -63,7 +63,8 @@ if y then (z := 1) else (z := 2)
 Functions use the `|->` (maps-to) operator:
 
 ```mathfp
-f := x |-> x * x;
+f := x |-> x * x
+f(2)
 ```
 
 ## Development

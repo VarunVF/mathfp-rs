@@ -159,6 +159,7 @@ impl Parser {
             Some(TokenType::If) => self.if_expr(),
             Some(_) => match self.lookahead_kind() {
                 Some(TokenType::Binding) => self.binding(),
+                Some(TokenType::MapsTo) => self.function_def(),
                 _ => self.binary_expr(),
             },
             None => self.make_error("Expected an expression"),
@@ -213,30 +214,23 @@ impl Parser {
         })
     }
 
-    fn binary_expr(&mut self) -> Result<Expr, String> {
-        let mut left = self.term()?;
+    fn function_def(&mut self) -> Result<Expr, String> {
+        let param = match self.current_kind() {
+            Some(TokenType::Identifier(name)) => name,
+            _ => return self.make_error("Expected a parameter name before |-> (MapsTo)"),
+        };
+        self.advance();
 
-        while self.matches_any(&[TokenType::Plus, TokenType::Minus]) {
-            let op = match self.current() {
-                Some(op) => op.clone(),
-                None => return self.make_error("Expected a binary operator"),
-            };
-            self.advance();
-            let right = self.term()?;
-            left = Expr::Binary {
-                left: Box::new(left),
-                op,
-                right: Box::new(right),
-            };
-        }
+        self.consume(TokenType::MapsTo)?;
+        let body = Box::new(self.expression()?);
 
-        Ok(left)
+        Ok(Expr::FunctionDef { param, body })
     }
 
-    fn term(&mut self) -> Result<Expr, String> {
+    fn binary_expr(&mut self) -> Result<Expr, String> {
         let mut left = self.factor()?;
 
-        while self.matches_any(&[TokenType::Star, TokenType::Slash]) {
+        while self.matches_any(&[TokenType::Plus, TokenType::Minus]) {
             let op = match self.current() {
                 Some(op) => op.clone(),
                 None => return self.make_error("Expected a binary operator"),
@@ -254,7 +248,45 @@ impl Parser {
     }
 
     fn factor(&mut self) -> Result<Expr, String> {
-        self.primary()
+        let mut left = self.unary()?;
+
+        while self.matches_any(&[TokenType::Star, TokenType::Slash]) {
+            let op = match self.current() {
+                Some(op) => op.clone(),
+                None => return self.make_error("Expected a binary operator"),
+            };
+            self.advance();
+            let right = self.unary()?;
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    fn unary(&mut self) -> Result<Expr, String> {
+        self.function_call()
+    }
+
+    fn function_call(&mut self) -> Result<Expr, String> {
+        let mut left = self.primary()?;
+
+        while self.matches(TokenType::LeftParen) {
+            self.advance();
+
+            let arg = Box::new(self.expression()?);
+            self.consume(TokenType::RightParen)?;
+
+            left = Expr::FunctionCall {
+                func: Box::new(left),
+                arg,
+            };
+        }
+
+        Ok(left)
     }
 
     fn primary(&mut self) -> Result<Expr, String> {
@@ -442,5 +474,23 @@ mod tests {
         ])
         .parse()
         .unwrap();
+    }
+
+    #[test]
+    fn test_function_def() {
+        assert_parse(
+            vec![
+                make_token(Identifier("x".into())),
+                make_token(MapsTo),
+                make_token(Number(2.0)),
+                make_token(Eof),
+            ],
+            Program {
+                statements: vec![FunctionDef {
+                    param: "x".into(),
+                    body: Box::new(Literal(LiteralValue::Number(2.0))),
+                }],
+            },
+        );
     }
 }
