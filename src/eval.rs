@@ -69,20 +69,24 @@ pub fn evaluate(expr: Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValu
         Expr::FunctionCall { func, arg } => {
             let function = evaluate(*func, Rc::clone(&env))?;
 
-            if let RuntimeValue::Function {
-                arg_name,
-                body,
-                closure,
-            } = function
-            {
-                let arg_value = evaluate(*arg, Rc::clone(&env))?;
+            match function {
+                RuntimeValue::Function {
+                    arg_name,
+                    body,
+                    closure,
+                } => {
+                    let arg_value = evaluate(*arg, Rc::clone(&env))?;
 
-                // The parent of the new scope is the closure
-                let local_env = Rc::new(RefCell::new(Environment::with_parent(closure)));
-                local_env.borrow_mut().bind(arg_name, arg_value)?;
-                evaluate(body, local_env)
-            } else {
-                Err("Only functions are callable".to_string())
+                    // The parent of the new scope is the closure
+                    let local_env = Rc::new(RefCell::new(Environment::with_parent(closure)));
+                    local_env.borrow_mut().bind(arg_name, arg_value)?;
+                    evaluate(body, local_env)
+                }
+                RuntimeValue::NativeFunction { name: _, function } => {
+                    let arg_value = evaluate(*arg, Rc::clone(&env))?;
+                    Ok(function(arg_value)?)
+                }
+                _ => Err("Only functions are callable".to_string()),
             }
         }
         kind => todo!("Handle other expressions, {:?} not yet implemented", kind),
@@ -96,6 +100,7 @@ fn is_truthy(value: &RuntimeValue) -> bool {
         RuntimeValue::String(msg) => !msg.is_empty(),
         RuntimeValue::Boolean(cond) => *cond,
         RuntimeValue::Function { .. } => true,
+        RuntimeValue::NativeFunction { .. } => true,
         RuntimeValue::Nil => false,
     }
 }

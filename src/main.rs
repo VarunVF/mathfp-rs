@@ -1,13 +1,9 @@
-mod ast;
-mod eval;
-mod parser;
-mod runtime;
-mod token;
-
 use std::cell::RefCell;
 use std::fs;
 use std::io::{self, Write};
 use std::rc::Rc;
+
+use mathfp::{eval, parser, runtime, token};
 
 fn usage() {
     println!("Usage: mathfp [file_name]");

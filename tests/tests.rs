@@ -127,3 +127,37 @@ fn test_mutual_recursion() {
 
     assert_eq!(run(input, Rc::clone(&env)), RuntimeValue::Boolean(true));
 }
+
+#[test]
+fn test_user_defined_function_equality() {
+    let env = Rc::new(RefCell::new(Environment::new()));
+
+    // Identical functions should be equal
+    let f1 = run("x |-> x + 1", Rc::clone(&env));
+    let f2 = run("x |-> x + 1", Rc::clone(&env));
+    assert_eq!(f1, f2, "Identical lambdas should be equal");
+
+    // Different parameter names should not be equal
+    let f3 = run("y |-> y + 1", Rc::clone(&env));
+    assert_ne!(f1, f3, "Different parameter names should not be equal");
+
+    // Different bodies should not be equal
+    let f4 = run("x |-> x + 2", Rc::clone(&env));
+    assert_ne!(f1, f4, "Different bodies should not be equal");
+}
+
+#[test]
+fn test_closure_equality() {
+    let env = Rc::new(RefCell::new(Environment::new()));
+
+    // Functions with different captured values in closures should NOT be equal
+    run("make_adder := x |-> (y |-> x + y)", Rc::clone(&env));
+
+    let add5 = run("make_adder(5)", Rc::clone(&env));
+    let add10 = run("make_adder(10)", Rc::clone(&env));
+
+    assert_ne!(
+        add5, add10,
+        "Functions with different captured closures should not be equal"
+    );
+}

@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::ast::Expr;
+use crate::builtins;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 #[allow(dead_code)] // until parsing is finished
 pub enum RuntimeValue {
     Number(f64),
@@ -15,7 +16,38 @@ pub enum RuntimeValue {
         body: Expr,
         closure: Rc<RefCell<Environment>>,
     },
+    NativeFunction {
+        name: String,
+        function: fn(RuntimeValue) -> Result<RuntimeValue, String>,
+    },
     Nil,
+}
+
+impl PartialEq for RuntimeValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Number(a), Self::Number(b)) => a == b,
+            (Self::String(a), Self::String(b)) => a == b,
+            (Self::Boolean(a), Self::Boolean(b)) => a == b,
+            // User-defined functions, check if the argument name, syntax tree and closures match.
+            (
+                Self::Function {
+                    arg_name: name_a,
+                    body: body_a,
+                    closure: env_a,
+                },
+                Self::Function {
+                    arg_name: name_b,
+                    body: body_b,
+                    closure: env_b,
+                },
+            ) => name_a == name_b && body_a == body_b && Rc::ptr_eq(env_a, env_b),
+            // For native functions, we check if they share the same identity/name
+            (Self::NativeFunction { name: a, .. }, Self::NativeFunction { name: b, .. }) => a == b,
+            (Self::Nil, Self::Nil) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -45,7 +77,25 @@ impl Environment {
         env.bind_const(String::from("nil"), RuntimeValue::Nil);
         env.bind_const(String::from("true"), RuntimeValue::Boolean(true));
         env.bind_const(String::from("false"), RuntimeValue::Boolean(false));
+
+        env.bind_native_fn("sin", builtins::sin);
+        env.bind_native_fn("cos", builtins::cos);
+        env.bind_native_fn("sqrt", builtins::sqrt);
+        env.bind_native_fn("clock", builtins::clock);
+
         env
+    }
+
+    fn bind_native_fn(
+        &mut self,
+        name: &str,
+        function: fn(RuntimeValue) -> Result<RuntimeValue, String>,
+    ) {
+        let value = RuntimeValue::NativeFunction {
+            name: name.into(),
+            function,
+        };
+        self.bind_const(name.into(), value);
     }
 
     pub fn with_parent(parent: Rc<RefCell<Environment>>) -> Environment {
@@ -108,9 +158,10 @@ pub fn display(value: &RuntimeValue) {
         }
         RuntimeValue::Function {
             arg_name,
-            body,
+            body: _,
             closure: _,
-        } => println!("function ({:?}) |-> {:?}", arg_name, body),
+        } => println!("<function in {arg_name}>"),
+        RuntimeValue::NativeFunction { name, function: _ } => println!("<native function {name}>"),
         RuntimeValue::Nil => println!("nil"),
     }
 }
@@ -185,5 +236,20 @@ mod tests {
 
         // Inner env variable shadows the outer scope variable
         assert_eq!(local_env.resolve("x"), Some(RuntimeValue::Number(2.0)));
+    }
+
+    #[test]
+    fn test_native_func_equality() {
+        let f1 = RuntimeValue::NativeFunction {
+            name: "sqrt".into(),
+            function: |val| Ok(val),
+        };
+        let f2 = RuntimeValue::NativeFunction {
+            name: "sqrt".into(),
+            function: |val| Ok(val),
+        };
+
+        // Uses the name "sqrt" to check equality
+        assert_eq!(f1, f2);
     }
 }
