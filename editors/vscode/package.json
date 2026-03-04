@@ -1,0 +1,25 @@
+{
+  "name": "mathfp",
+  "displayName": "mathfp",
+  "description": "MathFP language support",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.108.1"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "mathfp",
+      "aliases": ["MathFP", "mathfp"],
+      "extensions": [".mfp"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "mathfp",
+      "scopeName": "source.mfp",
+      "path": "./syntaxes/mathfp.tmLanguage.json"
+    }]
+  }
+}

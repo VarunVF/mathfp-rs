@@ -28,6 +28,11 @@ cd mathfp-rs/
 cargo build --release
 ```
 
+### Editor Support
+
+A simple syntax highlighting extension for VS Code is available (located in `editors/vscode/`).
+Most editor themes should work alongside with this extension.
+
 ### Usage
 
 Run the REPL to start evaluating expressions:
