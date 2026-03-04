@@ -71,6 +71,11 @@ Any expression can be used in the `then` and `else` branches of an `if`-expressi
 if y then (z := 1) else (z := 2)
 ```
 
+If you omit the `else` branch but the condition is false, `nil` is implicitly returned.
+```mathfp
+res := if 0 then 5  // res is now nil
+```
+
 ### Functions
 
 Functions use the `|->` (maps-to) operator:

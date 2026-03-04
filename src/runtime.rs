@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::rc::Rc;
 
 use crate::ast::Expr;
@@ -50,6 +51,31 @@ impl PartialEq for RuntimeValue {
     }
 }
 
+impl Display for RuntimeValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RuntimeValue::Number(n) => write!(f, "{n}"),
+            RuntimeValue::String(msg) => write!(f, "\"{msg}\""),
+            RuntimeValue::Boolean(cond) => {
+                if *cond {
+                    write!(f, "true")
+                } else {
+                    write!(f, "false")
+                }
+            }
+            RuntimeValue::Function {
+                arg_name,
+                body: _,
+                closure: _,
+            } => write!(f, "<function in {arg_name}>"),
+            RuntimeValue::NativeFunction { name, function: _ } => {
+                write!(f, "<native function {name}>")
+            }
+            RuntimeValue::Nil => write!(f, "nil"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct Binding {
     value: RuntimeValue,
@@ -82,6 +108,9 @@ impl Environment {
         env.bind_native_fn("cos", builtins::cos);
         env.bind_native_fn("sqrt", builtins::sqrt);
         env.bind_native_fn("clock", builtins::clock);
+        env.bind_native_fn("str", builtins::str);
+        env.bind_native_fn("print", builtins::print);
+        env.bind_native_fn("println", builtins::println);
 
         env
     }
@@ -162,28 +191,6 @@ impl Environment {
         } else {
             None
         }
-    }
-}
-
-/// Print to stdout the value contained within the RuntimeValue along with a newline character.
-pub fn display(value: &RuntimeValue) {
-    match value {
-        RuntimeValue::Number(n) => println!("{n}"),
-        RuntimeValue::String(msg) => println!("\"{msg}\""),
-        RuntimeValue::Boolean(cond) => {
-            if *cond {
-                println!("true")
-            } else {
-                println!("false")
-            }
-        }
-        RuntimeValue::Function {
-            arg_name,
-            body: _,
-            closure: _,
-        } => println!("<function in {arg_name}>"),
-        RuntimeValue::NativeFunction { name, function: _ } => println!("<native function {name}>"),
-        RuntimeValue::Nil => println!("nil"),
     }
 }
 

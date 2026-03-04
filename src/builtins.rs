@@ -38,3 +38,55 @@ pub fn clock(value: RuntimeValue) -> Result<RuntimeValue, String> {
         _ => Err("clock() takes no argument, pass `nil` instead".into()),
     }
 }
+
+pub fn str(value: RuntimeValue) -> Result<RuntimeValue, String> {
+    match value {
+        RuntimeValue::Number(n) => Ok(RuntimeValue::String(n.to_string())),
+        RuntimeValue::String(msg) => Ok(RuntimeValue::String(msg)),
+        RuntimeValue::Boolean(cond) => {
+            if cond {
+                Ok(RuntimeValue::String("true".to_string()))
+            } else {
+                Ok(RuntimeValue::String("false".to_string()))
+            }
+        }
+        RuntimeValue::Function {
+            arg_name,
+            body: _,
+            closure: _,
+        } => Ok(RuntimeValue::String(format!("<function in {arg_name}>"))),
+        RuntimeValue::NativeFunction { name, function: _ } => {
+            Ok(RuntimeValue::String(format!("<native function {name}>")))
+        }
+        RuntimeValue::Nil => Ok(RuntimeValue::String("nil".to_string())),
+    }
+}
+
+pub fn print(value: RuntimeValue) -> Result<RuntimeValue, String> {
+    match value {
+        RuntimeValue::Number(n) => print!("{}", n),
+        RuntimeValue::String(msg) => print!("{}", msg),
+        RuntimeValue::Boolean(cond) => {
+            if cond {
+                print!("true")
+            } else {
+                print!("false")
+            }
+        }
+        RuntimeValue::Function {
+            arg_name,
+            body: _,
+            closure: _,
+        } => print!("<function in {arg_name}>"),
+        RuntimeValue::NativeFunction { name, function: _ } => print!("<native function {name}>"),
+        RuntimeValue::Nil => print!("nil"),
+    }
+
+    Ok(RuntimeValue::Nil)
+}
+
+pub fn println(value: RuntimeValue) -> Result<RuntimeValue, String> {
+    print(value)?;
+    println!();
+    Ok(RuntimeValue::Nil)
+}

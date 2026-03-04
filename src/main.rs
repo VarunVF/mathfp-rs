@@ -3,13 +3,14 @@ use std::fs;
 use std::io::{self, Write};
 use std::rc::Rc;
 
+use mathfp::runtime::RuntimeValue;
 use mathfp::{eval, parser, runtime, token};
 
 fn usage() {
     println!("Usage: mathfp [file_name]");
 }
 
-fn run(source: &str, env: Rc<RefCell<runtime::Environment>>) -> Result<(), String> {
+fn run(source: &str, env: Rc<RefCell<runtime::Environment>>) -> Result<RuntimeValue, String> {
     let tokens = token::Scanner::new(source)
         .scan()
         .map_err(|errors| token::Scanner::report(&errors))?;
@@ -18,10 +19,7 @@ fn run(source: &str, env: Rc<RefCell<runtime::Environment>>) -> Result<(), Strin
         .parse()
         .map_err(|errors| parser::Parser::report(&errors))?;
 
-    let result = eval::evaluate(program, env)?;
-    runtime::display(&result);
-
-    Ok(())
+    eval::evaluate(program, env)
 }
 
 fn run_file(file_name: &str) -> Result<(), String> {
@@ -51,7 +49,14 @@ fn run_repl() -> Result<(), String> {
         match bytes_read {
             0 => return Ok(()), // EOF
             _ => {
-                let _ = run(&input, Rc::clone(&env)).map_err(|e| eprintln!("{e}"));
+                match run(&input, Rc::clone(&env)) {
+                    Ok(value) => {
+                        if value != RuntimeValue::Nil {
+                            println!("{value}")
+                        }
+                    }
+                    Err(e) => eprintln!("{e}"),
+                };
             }
         };
     }
