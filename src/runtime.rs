@@ -7,7 +7,6 @@ use crate::ast::Expr;
 use crate::builtins;
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)] // until parsing is finished
 pub enum RuntimeValue {
     Number(f64),
     String(String),

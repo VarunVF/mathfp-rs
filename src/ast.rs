@@ -1,7 +1,6 @@
 use crate::token::Token;
 
 #[derive(Clone, Debug, PartialEq)]
-#[allow(dead_code)] // until parsing is finished
 pub enum Expr {
     Program {
         statements: Vec<Expr>,
@@ -46,7 +45,6 @@ pub enum Expr {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[allow(dead_code)] // until parsing is finished
 pub enum LiteralValue {
     Number(f64),
     String(String),
