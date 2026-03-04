@@ -133,7 +133,7 @@ impl Scanner {
                     continue;
                 }
                 _ if ch.is_ascii_digit() || ch == '.' => return self.number(),
-                _ if ch.is_alphabetic() => return self.identifier(),
+                _ if ch.is_alphabetic() || ch == '_' => return self.identifier(),
                 _ => return self.unexpected(ch),
             };
         }
