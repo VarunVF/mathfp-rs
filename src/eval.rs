@@ -72,6 +72,7 @@ pub fn evaluate(expr: Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValu
             closure: Rc::clone(&env),
         }),
         Expr::FunctionBody { statements } => {
+            // An empty function body should return nil
             let mut res = Ok(RuntimeValue::Nil);
             for stmt in statements {
                 res = evaluate(stmt, Rc::clone(&env));

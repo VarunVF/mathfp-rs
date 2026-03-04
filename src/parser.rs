@@ -265,7 +265,12 @@ impl Parser {
 
             Ok(Expr::FunctionBody { statements })
         } else {
-            self.expression()
+            match self.current_kind() {
+                Some(TokenType::EndStmt) | None => {
+                    self.make_error("Function body cannot be empty, use {} instead")
+                }
+                Some(_) => self.expression(),
+            }
         }
     }
 

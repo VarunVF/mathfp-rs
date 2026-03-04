@@ -245,3 +245,20 @@ fn test_comments_inside_functions() {
 
     assert_eq!(run(input, env), RuntimeValue::Number(16.0));
 }
+
+#[test]
+#[should_panic(expected = "Function body cannot be empty, use {} instead")]
+fn test_function_body_empty_error() {
+    let env = Rc::new(RefCell::new(Environment::new()));
+    let input = "f := _ |-> ;";
+
+    run(input, env);
+}
+
+#[test]
+fn test_function_body_empty_ok() {
+    let env = Rc::new(RefCell::new(Environment::new()));
+    let input = "f := _ |-> {}";
+
+    run(input, env);
+}
