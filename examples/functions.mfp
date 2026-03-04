@@ -6,4 +6,4 @@ hypotenuse := a |-> b |-> {
     sqrt(a2 + b2)
 }
 
-hypotenuse(3)(4)
+hypotenuse(3)(4)  // 5

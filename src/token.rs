@@ -115,7 +115,18 @@ impl Scanner {
                 '+' => return self.single_char(TokenType::Plus, ch),
                 '-' => return self.single_char(TokenType::Minus, ch),
                 '*' => return self.single_char(TokenType::Star, ch),
-                '/' => return self.single_char(TokenType::Slash, ch),
+                '/' => match self.lookahead() {
+                    Some('/') => {
+                        while let Some(ch) = self.current()
+                            && ch != '\n'
+                        {
+                            self.advance();
+                        }
+                        continue;
+                    }
+                    Some(_) => return self.single_char(TokenType::Slash, ch),
+                    None => continue,
+                },
                 '<' => return self.single_char(TokenType::LessThan, ch),
                 '>' => return self.single_char(TokenType::GreaterThan, ch),
                 '(' => return self.single_char(TokenType::LeftParen, ch),
@@ -141,6 +152,10 @@ impl Scanner {
 
     fn current(&self) -> Option<char> {
         self.source.chars().nth(self.current)
+    }
+
+    fn lookahead(&self) -> Option<char> {
+        self.source.chars().nth(self.current + 1)
     }
 
     fn advance(&mut self) {
@@ -216,7 +231,13 @@ impl Scanner {
 
     fn maps_to(&mut self) -> Result<Token, String> {
         // symbol |->
-        let lexeme = &self.source[self.start..self.current + 3];
+        let lexeme = match self.source.get(self.start..self.current + 3) {
+            Some(slice) => slice,
+            None => {
+                self.advance();
+                return self.make_error("Expected a |-> (MapsTo) symbol, reached EOF");
+            }
+        };
         match lexeme {
             "|->" => {
                 self.advance_by(3);
@@ -231,8 +252,14 @@ impl Scanner {
 
     fn binding(&mut self) -> Result<Token, String> {
         // symbol :=
-        let symbol = &self.source[self.start..self.current + 2];
-        match symbol {
+        let lexeme = match self.source.get(self.start..self.current + 2) {
+            Some(slice) => slice,
+            None => {
+                self.advance();
+                return self.make_error("Expected a |-> (MapsTo) symbol, reached EOF");
+            }
+        };
+        match lexeme {
             ":=" => {
                 self.advance_by(2);
                 self.make_token(TokenType::Binding, ":=")
@@ -448,5 +475,26 @@ mod tests {
     #[test]
     fn test_empty() {
         assert_scan("", vec![make_token(Eof)]);
+    }
+
+    #[test]
+    #[should_panic(expected = "Failed to parse '..' as a number")]
+    fn test_invalid_float_literal() {
+        let source = "..";
+        Scanner::new(source).scan().unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected a |-> (MapsTo) symbol")]
+    fn test_invalid_mapsto() {
+        let source = "|  x";
+        Scanner::new(source).scan().unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected a := (Binding) symbol")]
+    fn test_invalid_binding() {
+        let source = ": x";
+        Scanner::new(source).scan().unwrap();
     }
 }

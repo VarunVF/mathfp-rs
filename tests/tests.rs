@@ -216,3 +216,32 @@ fn test_closure_mutation_counter() {
     // The final call c(5) should return 1 + 1 + 5 = 7
     assert_eq!(run(input, Rc::clone(&env)), RuntimeValue::Number(7.0));
 }
+
+#[test]
+fn test_comments() {
+    let env = Rc::new(RefCell::new(Environment::new()));
+    let input = "
+        x := 10; // This is a comment
+        // This is a whole line comment
+        y := 5;
+        x + y // Returns 15
+    ";
+
+    assert_eq!(run(input, env), RuntimeValue::Number(15.0));
+}
+
+#[test]
+fn test_comments_inside_functions() {
+    let env = Rc::new(RefCell::new(Environment::new()));
+    let input = "
+        // Squares a number.
+        f := x |-> {
+            // Calculate square
+            res := x * x;
+            res // return it
+        };
+        f(4)
+    ";
+
+    assert_eq!(run(input, env), RuntimeValue::Number(16.0));
+}
