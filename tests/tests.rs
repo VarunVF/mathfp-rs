@@ -262,3 +262,20 @@ fn test_function_body_empty_ok() {
 
     run(input, env);
 }
+
+#[test]
+#[should_panic(expected = "Name 'no_such_function' is not defined")]
+fn test_undefined_name_in_function() {
+    let env = Rc::new(RefCell::new(Environment::new()));
+    let input = "
+        main := _ |-> {
+            value := no_such_function(nil);
+            println(value);
+        }
+        main(nil)
+    ";
+
+    // Evaluation should stop as soon as `no_such_function` was found to be unresolved.
+    // It should never go on to the next statement.
+    run(input, env);
+}
