@@ -231,3 +231,17 @@ fn test_undefined_name_in_function() {
     // It should never go on to the next statement.
     execute_or_panic(input);
 }
+
+#[test]
+#[should_panic(expected = "Expected an expression")]
+fn test_incomplete_function_def() {
+    let input = "f := x |-> {";
+    execute_or_panic(input);
+}
+
+#[test]
+#[should_panic]
+fn test_incomplete_grouping() {
+    let input = "f := x + (1";
+    execute_or_panic(input);
+}

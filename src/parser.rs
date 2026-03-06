@@ -155,15 +155,14 @@ impl Parser {
     fn expression(&mut self) -> Result<Expr, String> {
         match self.current_kind() {
             Some(TokenType::EndStmt) => self.empty_expr(),
-            Some(TokenType::Eof) => unreachable!(),
             Some(TokenType::If) => self.if_expr(),
+            Some(TokenType::Eof) | None => self.make_error("Expected an expression"),
             Some(_) => match self.lookahead_kind() {
                 Some(TokenType::Equal) => self.assignment(),
                 Some(TokenType::Binding) => self.binding(),
                 Some(TokenType::MapsTo) => self.function_def(),
                 _ => self.binary_expr(),
             },
-            None => self.make_error("Expected an expression"),
         }
     }
 
@@ -414,7 +413,7 @@ impl Parser {
     }
 
     fn grouping(&mut self) -> Result<Expr, String> {
-        self.advance(); // opening (
+        self.consume(TokenType::LeftParen)?; // opening (
         let expr = self.expression()?;
         match self.current_kind() {
             Some(TokenType::RightParen) => {
@@ -425,7 +424,7 @@ impl Parser {
                 "Expected ) after parenthesised expression, found {:?}",
                 kind
             )),
-            None => unreachable!(),
+            None => self.make_error("Expected an expression after '('"),
         }
     }
 }
