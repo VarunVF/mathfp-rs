@@ -6,4 +6,5 @@ hypotenuse := a |-> b |-> {
     sqrt(a2 + b2)
 }
 
-hypotenuse(3)(4)  // 5
+diagonal := hypotenuse(3)(4)  // 5
+println(diagonal)

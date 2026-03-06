@@ -1,7 +1,12 @@
-make_counter := start |-> {
-    val := start;
-    n |-> { val = val + n; val }
-};
-c := make_counter(0);
-c(1);
-c(1);
+make_counter := _ |-> {
+    i := 0;
+    count := _ |-> {
+        i = i + 1;
+        println(i);
+    }
+    count
+}
+
+counter := make_counter(nil);
+counter(nil);   // 1
+counter(nil);   // 2

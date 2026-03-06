@@ -1,5 +1,5 @@
 // Measure the time taken to call the given lambda
-bench := f |-> {
+measure := f |-> {
     t1 := clock(nil);
     f(nil);
     clock(nil) - t1
@@ -18,24 +18,28 @@ custom_sin := x |-> {
 }
 
 // Pass lambdas so that they don't execute immediately
-builtin_time := bench(_ |-> sin(3))
-custom_time := bench(_ |-> custom_sin(3))
+x := 3.0
+builtin_time := measure(_ |-> sin(x))
+custom_time := measure(_ |-> custom_sin(x))
 
-print("Builtin sin time: "); println(builtin_time)
-print("Custom sin time : "); println(custom_time)
-print("Time difference : "); println(custom_time - builtin_time)
-
-
+print("     Results using x: "); println(x)
+print("Builtin sin time (s): "); println(builtin_time)
+print(" Custom sin time (s): "); println(custom_time)
+print(" Time difference (s): "); println(custom_time - builtin_time)
 println("")
 
-x := 1.0
+report := x |-> {
+    sin_val := sin(x)
+    custom_sin_val := custom_sin(x)
 
-sin_val := sin(x)
-custom_sin_val := custom_sin(x)
+    print("Results using x: "); println(x)
+    print(" Builtin sin(x): "); println(sin_val)
+    print("  Custom sin(x): "); println(custom_sin_val)
+    print("     Difference: "); println(custom_sin_val - sin_val)
+    println("")
+}
 
-print("Values for : x="); println(x)
-print("Builtin sin: "); println(sin_val)
-print("Custom sin : "); println(custom_sin_val)
-print("Difference : "); println(custom_sin_val - sin_val)
-
-println("")
+report(1.0)
+report(2.0)
+report(3.0)
+report(4.0)
