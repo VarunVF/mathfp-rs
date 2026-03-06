@@ -3,7 +3,18 @@ use std::rc::Rc;
 
 use crate::ast::{Expr, LiteralValue};
 use crate::runtime::{Environment, RuntimeValue};
-use crate::token::TokenType;
+use crate::token::{Token, TokenType};
+
+fn make_unsupported_binary_expr_err(
+    left: &RuntimeValue,
+    right: &RuntimeValue,
+    op: &Token,
+) -> Result<RuntimeValue, String> {
+    Err(format!(
+        "Unsupported operands for '{}': {left}, {right}",
+        op.lexeme
+    ))
+}
 
 pub fn evaluate(expr: Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     match expr {
@@ -21,22 +32,53 @@ pub fn evaluate(expr: Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValu
             LiteralValue::Boolean(cond) => Ok(RuntimeValue::Boolean(cond)),
         },
         Expr::Binary { left, op, right } => {
-            let l = match evaluate(*left, Rc::clone(&env))? {
-                RuntimeValue::Number(value) => value,
-                RuntimeValue::Boolean(cond) => (cond as i64) as f64,
-                _ => return Err("Operands for binary expressions must be numbers".to_string()),
-            };
-            let r = match evaluate(*right, env)? {
-                RuntimeValue::Number(value) => value,
-                RuntimeValue::Boolean(cond) => (cond as i64) as f64,
-                _ => return Err("Operands for binary expressions must be numbers".to_string()),
-            };
-            match op.kind {
-                TokenType::Plus => Ok(RuntimeValue::Number(l + r)),
-                TokenType::Minus => Ok(RuntimeValue::Number(l - r)),
-                TokenType::Star => Ok(RuntimeValue::Number(l * r)),
-                TokenType::Slash => Ok(RuntimeValue::Number(l / r)),
-                _ => unreachable!(),
+            let left = evaluate(*left, Rc::clone(&env))?;
+            let right = evaluate(*right, Rc::clone(&env))?;
+            match (&left, &right) {
+                // For numbers
+                (RuntimeValue::Number(left), RuntimeValue::Number(right)) => match op.kind {
+                    TokenType::Plus => Ok(RuntimeValue::Number(left + right)),
+                    TokenType::Minus => Ok(RuntimeValue::Number(left - right)),
+                    TokenType::Star => Ok(RuntimeValue::Number(left * right)),
+                    TokenType::Slash => Ok(RuntimeValue::Number(left / right)),
+                    TokenType::Less => Ok(RuntimeValue::Boolean(left < right)),
+                    TokenType::LessEqual => Ok(RuntimeValue::Boolean(left <= right)),
+                    TokenType::Greater => Ok(RuntimeValue::Boolean(left > right)),
+                    TokenType::GreaterEqual => Ok(RuntimeValue::Boolean(left >= right)),
+                    TokenType::BangEqual => Ok(RuntimeValue::Boolean(left != right)),
+                    TokenType::EqualEqual => Ok(RuntimeValue::Boolean(left == right)),
+                    _ => unreachable!("There should be no other binary operators"),
+                },
+                (_, _) => match op.kind {
+                    // Plus also defined for String.
+                    TokenType::Plus => match (left, right) {
+                        (RuntimeValue::String(left), RuntimeValue::String(right)) => {
+                            Ok(RuntimeValue::String(format!("{left}{right}")))
+                        }
+                        (left, right) => make_unsupported_binary_expr_err(&left, &right, &op),
+                    },
+                    // Minus, Star, Slash not defined for other types.
+                    TokenType::Minus | TokenType::Star | TokenType::Slash => {
+                        make_unsupported_binary_expr_err(&left, &right, &op)
+                    }
+                    TokenType::Less => Ok(RuntimeValue::Boolean(left < right)),
+                    TokenType::LessEqual => Ok(RuntimeValue::Boolean(left <= right)),
+                    TokenType::Greater => Ok(RuntimeValue::Boolean(left > right)),
+                    TokenType::GreaterEqual => Ok(RuntimeValue::Boolean(left >= right)),
+                    TokenType::BangEqual => Ok(RuntimeValue::Boolean(left != right)),
+                    TokenType::EqualEqual => Ok(RuntimeValue::Boolean(left == right)),
+                    _ => unreachable!("There should be no other binary operators"),
+                },
+            }
+        }
+        Expr::Unary { op, right } => {
+            let r = evaluate(*right, env)?;
+            match (op.kind, r.clone()) {
+                (TokenType::Minus, RuntimeValue::Number(n)) => Ok(RuntimeValue::Number(-n)),
+                (TokenType::Minus, _) => Err("Operand for unary '-' must be a number".to_string()),
+                (TokenType::Bang, RuntimeValue::Boolean(cond)) => Ok(RuntimeValue::Boolean(!cond)),
+                (TokenType::Bang, _) => Ok(RuntimeValue::Boolean(!is_truthy(&r))),
+                _ => unreachable!("There should only be '-' or '!' unary operators"),
             }
         }
         Expr::Grouping(expr) => evaluate(*expr, env),
@@ -104,7 +146,6 @@ pub fn evaluate(expr: Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValu
             }
         }
         Expr::Empty => unreachable!("The program should never contain Empty expressions"),
-        kind => todo!("Handle other expressions, {:?} not yet implemented", kind),
     }
 }
 
@@ -163,22 +204,6 @@ mod tests {
         assert_eq!(
             evaluate(expr, Rc::clone(&env)).unwrap(),
             RuntimeValue::Number(15.0)
-        );
-    }
-
-    #[test]
-    fn test_boolean_to_number_coercion() {
-        let env = Rc::new(RefCell::new(Environment::new()));
-
-        // true + 1 (should be 1.0 + 1.0 = 2.0)
-        let expr = Expr::Binary {
-            left: Box::new(Expr::Variable("true".into())),
-            op: op_token(TokenType::Plus),
-            right: Box::new(Expr::Literal(LiteralValue::Number(1.0))),
-        };
-        assert_eq!(
-            evaluate(expr, Rc::clone(&env)).unwrap(),
-            RuntimeValue::Number(2.0)
         );
     }
 

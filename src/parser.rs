@@ -275,12 +275,57 @@ impl Parser {
     }
 
     fn binary_expr(&mut self) -> Result<Expr, String> {
-        let mut left = self.factor()?;
+        let mut left = self.equality()?;
 
         while self.matches_any(&[TokenType::Plus, TokenType::Minus]) {
             let op = match self.current() {
                 Some(op) => op.clone(),
-                None => return self.make_error("Expected a binary operator"),
+                None => return self.make_error("Expected '+' or '-'"),
+            };
+            self.advance();
+            let right = self.equality()?;
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    fn equality(&mut self) -> Result<Expr, String> {
+        let mut left = self.comparison()?;
+
+        while self.matches_any(&[TokenType::BangEqual, TokenType::EqualEqual]) {
+            let op = match self.current() {
+                Some(op) => op.clone(),
+                None => return self.make_error("Expected '==' or '!='"),
+            };
+            self.advance();
+            let right = self.comparison()?;
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    fn comparison(&mut self) -> Result<Expr, String> {
+        let mut left = self.factor()?;
+
+        while self.matches_any(&[
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual,
+        ]) {
+            let op = match self.current() {
+                Some(op) => op.clone(),
+                None => return self.make_error("Expected one of '>', '>=', '<', '<='"),
             };
             self.advance();
             let right = self.factor()?;
@@ -300,7 +345,7 @@ impl Parser {
         while self.matches_any(&[TokenType::Star, TokenType::Slash]) {
             let op = match self.current() {
                 Some(op) => op.clone(),
-                None => return self.make_error("Expected a binary operator"),
+                None => return self.make_error("Expected '*' or '/'"),
             };
             self.advance();
             let right = self.unary()?;
@@ -315,7 +360,17 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Expr, String> {
-        self.function_call()
+        if self.matches_any(&[TokenType::Bang, TokenType::Minus]) {
+            let op = match self.current() {
+                Some(op) => op.clone(),
+                None => return self.make_error("Expected '!' or '-'"),
+            };
+            self.advance();
+            let right = Box::new(self.function_call()?);
+            Ok(Expr::Unary { op, right })
+        } else {
+            self.function_call()
+        }
     }
 
     fn function_call(&mut self) -> Result<Expr, String> {

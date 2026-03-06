@@ -13,13 +13,20 @@ pub enum TokenType {
     Minus,
     Star,
     Slash,
-    LessThan,
-    GreaterThan,
     LeftParen,
     RightParen,
     LeftBrace,
     RightBrace,
+
+    // One or two character tokens
+    Bang,
+    BangEqual,
     Equal,
+    EqualEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
 
     // Data tokens
     Identifier(String),
@@ -70,6 +77,7 @@ impl Scanner {
         ))
     }
 
+    /// Creates a new Token, without advancing.
     fn make_token(&self, kind: TokenType, lexeme: &str) -> Result<Token, String> {
         Ok(Token {
             kind,
@@ -77,6 +85,12 @@ impl Scanner {
             line: self.line,
             column: self.column,
         })
+    }
+
+    /// Advances by the length of the lexeme and creates a new Token.
+    fn advance_and_make_token(&mut self, kind: TokenType, lexeme: &str) -> Result<Token, String> {
+        self.advance_by(lexeme.len());
+        self.make_token(kind, lexeme)
     }
 
     pub fn scan(&mut self) -> Result<Vec<Token>, Vec<String>> {
@@ -108,43 +122,70 @@ impl Scanner {
 
             let ch = match self.current() {
                 Some(value) => value,
-                None => return self.make_token(TokenType::Eof, ""),
+                None => return self.advance_and_make_token(TokenType::Eof, ""),
             };
 
             match ch {
-                '+' => return self.single_char(TokenType::Plus, ch),
-                '-' => return self.single_char(TokenType::Minus, ch),
-                '*' => return self.single_char(TokenType::Star, ch),
-                '/' => match self.lookahead() {
-                    Some('/') => {
+                '+' => return self.advance_and_make_token(TokenType::Plus, "+"),
+                '-' => return self.advance_and_make_token(TokenType::Minus, "-"),
+                '*' => return self.advance_and_make_token(TokenType::Star, "*"),
+                '/' => {
+                    if self.match_char('/') {
                         while let Some(ch) = self.current()
                             && ch != '\n'
                         {
                             self.advance();
                         }
                         continue;
+                    } else {
+                        return self.advance_and_make_token(TokenType::Slash, "/");
                     }
-                    Some(_) => return self.single_char(TokenType::Slash, ch),
-                    None => continue,
-                },
-                '<' => return self.single_char(TokenType::LessThan, ch),
-                '>' => return self.single_char(TokenType::GreaterThan, ch),
-                '(' => return self.single_char(TokenType::LeftParen, ch),
-                ')' => return self.single_char(TokenType::RightParen, ch),
+                }
+                '(' => return self.advance_and_make_token(TokenType::LeftParen, "("),
+                ')' => return self.advance_and_make_token(TokenType::RightParen, ")"),
+                '{' => return self.advance_and_make_token(TokenType::LeftBrace, "{"),
+                '}' => return self.advance_and_make_token(TokenType::RightBrace, "}"),
+                '!' => {
+                    if self.match_char('=') {
+                        return self.advance_and_make_token(TokenType::BangEqual, "!=");
+                    } else {
+                        return self.advance_and_make_token(TokenType::Bang, "!");
+                    }
+                }
+                '=' => {
+                    if self.match_char('=') {
+                        return self.advance_and_make_token(TokenType::EqualEqual, "==");
+                    } else {
+                        return self.advance_and_make_token(TokenType::Equal, "=");
+                    }
+                }
+                '<' => {
+                    if self.match_char('=') {
+                        return self.advance_and_make_token(TokenType::LessEqual, "<=");
+                    } else {
+                        return self.advance_and_make_token(TokenType::Less, "<");
+                    }
+                }
+                '>' => {
+                    if self.match_char('=') {
+                        return self.advance_and_make_token(TokenType::GreaterEqual, ">=");
+                    } else {
+                        return self.advance_and_make_token(TokenType::Greater, ">");
+                    }
+                }
                 '|' => return self.maps_to(),
                 ':' => return self.binding(),
-                '{' => return self.single_char(TokenType::LeftBrace, ch),
-                '}' => return self.single_char(TokenType::RightBrace, ch),
-                '=' => return self.single_char(TokenType::Equal, ch),
-                '"' => return self.string(),
-                '\n' | ';' => return self.single_char(TokenType::EndStmt, ch),
+                '\n' | ';' => {
+                    return self.advance_and_make_token(TokenType::EndStmt, &ch.to_string());
+                }
                 ' ' | '\r' | '\t' => {
                     // Skip whitespace
                     self.advance();
                     continue;
                 }
-                _ if ch.is_ascii_digit() || ch == '.' => return self.number(),
+                '"' => return self.string(),
                 _ if ch.is_alphabetic() || ch == '_' => return self.identifier(),
+                _ if ch.is_ascii_digit() || ch == '.' => return self.number(),
                 _ => return self.unexpected(ch),
             };
         }
@@ -154,8 +195,13 @@ impl Scanner {
         self.source.chars().nth(self.current)
     }
 
-    fn lookahead(&self) -> Option<char> {
-        self.source.chars().nth(self.current + 1)
+    /// Returns true if `ch` matches the next char in the source.
+    fn match_char(&self, ch: char) -> bool {
+        if let Some(actual) = self.source.chars().nth(self.current + 1) {
+            ch == actual
+        } else {
+            false
+        }
     }
 
     fn advance(&mut self) {
@@ -176,12 +222,6 @@ impl Scanner {
         for _ in 0..amount {
             self.advance();
         }
-    }
-
-    /// Calls `self.advance()`, then creates a new token of a single character.
-    fn single_char(&mut self, kind: TokenType, ch: char) -> Result<Token, String> {
-        self.advance();
-        self.make_token(kind, &String::from(ch))
     }
 
     fn unexpected(&mut self, ch: char) -> Result<Token, String> {
@@ -372,8 +412,8 @@ mod tests {
                 make_token(Minus),
                 make_token(Star),
                 make_token(Slash),
-                make_token(LessThan),
-                make_token(GreaterThan),
+                make_token(Less),
+                make_token(Greater),
                 make_token(LeftParen),
                 make_token(RightParen),
                 make_token(EndStmt),
@@ -432,7 +472,7 @@ mod tests {
                 make_token(If),
                 make_token(LeftParen),
                 make_token(Identifier("n".to_string())),
-                make_token(GreaterThan),
+                make_token(Greater),
                 make_token(Number(0.0)),
                 make_token(RightParen),
                 make_token(Then),

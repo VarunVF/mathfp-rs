@@ -29,23 +29,29 @@ impl PartialEq for RuntimeValue {
             (Self::Number(a), Self::Number(b)) => a == b,
             (Self::String(a), Self::String(b)) => a == b,
             (Self::Boolean(a), Self::Boolean(b)) => a == b,
-            // User-defined functions, check if the argument name, syntax tree and closures match.
-            (
-                Self::Function {
-                    arg_name: name_a,
-                    body: body_a,
-                    closure: env_a,
-                },
-                Self::Function {
-                    arg_name: name_b,
-                    body: body_b,
-                    closure: env_b,
-                },
-            ) => name_a == name_b && body_a == body_b && Rc::ptr_eq(env_a, env_b),
-            // For native functions, we check if they share the same identity/name
-            (Self::NativeFunction { name: a, .. }, Self::NativeFunction { name: b, .. }) => a == b,
+            // Functions cannot be compared.
+            (Self::Function { .. }, Self::Function { .. }) => false,
+            (Self::NativeFunction { .. }, Self::NativeFunction { .. }) => false,
             (Self::Nil, Self::Nil) => true,
+            // Two different types are never equal.
             _ => false,
+        }
+    }
+}
+
+impl PartialOrd for RuntimeValue {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Self::Number(a), Self::Number(b)) => a.partial_cmp(b),
+            (Self::String(a), Self::String(b)) => a.partial_cmp(b),
+            (Self::Boolean(a), Self::Boolean(b)) => a.partial_cmp(b),
+            // Functions cannot be compared.
+            (Self::Function { .. }, Self::Function { .. }) => None,
+            (Self::NativeFunction { .. }, Self::NativeFunction { .. }) => None,
+            // Allow nil checking.
+            (Self::Nil, Self::Nil) => Some(std::cmp::Ordering::Equal),
+            // Two different types cannot be compared.
+            _ => None,
         }
     }
 }
@@ -267,16 +273,32 @@ mod tests {
 
     #[test]
     fn test_native_func_equality() {
-        let f1 = RuntimeValue::NativeFunction {
-            name: "sqrt".into(),
-            function: |val| Ok(val),
-        };
-        let f2 = RuntimeValue::NativeFunction {
-            name: "sqrt".into(),
-            function: |val| Ok(val),
-        };
+        fn make_native_fn() -> RuntimeValue {
+            RuntimeValue::NativeFunction {
+                name: "sqrt".into(),
+                function: |val| Ok(val),
+            }
+        }
 
-        // Uses the name "sqrt" to check equality
-        assert_eq!(f1, f2);
+        // Functions cannot be compared
+        let f1 = make_native_fn();
+        let f2 = make_native_fn();
+        assert_ne!(f1, f2);
+    }
+
+    #[test]
+    fn test_func_equality() {
+        fn make_fn() -> RuntimeValue {
+            RuntimeValue::Function {
+                arg_name: "x".into(),
+                body: Expr::FunctionBody { statements: vec![] },
+                closure: Rc::new(RefCell::new(Environment::new())),
+            }
+        }
+
+        // Functions cannot be compared
+        let f1 = make_fn();
+        let f2 = make_fn();
+        assert_ne!(f1, f2);
     }
 }
