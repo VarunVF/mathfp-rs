@@ -3,6 +3,7 @@ pub mod builtins;
 pub mod interpreter;
 pub mod parser;
 pub mod runtime;
+pub mod scanner;
 pub mod token;
 
 pub fn execute(input: &str) -> Result<runtime::RuntimeValue, String> {
@@ -17,9 +18,9 @@ pub fn execute_env(
     input: &str,
     interpreter: &interpreter::Interpreter,
 ) -> Result<runtime::RuntimeValue, String> {
-    let tokens = token::Scanner::new(input)
+    let tokens = scanner::Scanner::new(input)
         .scan()
-        .map_err(|errors| token::Scanner::report(&errors))?;
+        .map_err(|errors| scanner::Scanner::report(&errors))?;
 
     let expr = parser::Parser::new(tokens)
         .parse()
