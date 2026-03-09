@@ -1,8 +1,14 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use mathfp::interpreter::Interpreter;
+use mathfp::runtime::RuntimeValue;
+use mathfp::{execute_env_or_panic, execute_or_panic};
 
-use mathfp::runtime::{Environment, RuntimeValue};
-use mathfp::{execute_env, execute_env_or_panic, execute_or_panic};
+// assert helper
+fn assert_bool(interpreter: &Interpreter, name: &str, cond: bool) {
+    assert_eq!(
+        interpreter.value_of(name),
+        Some(RuntimeValue::Boolean(cond))
+    )
+}
 
 #[test]
 fn test_numeric_ops() {
@@ -12,7 +18,7 @@ fn test_numeric_ops() {
 
 #[test]
 fn test_numeric_comparison() {
-    let env = Rc::new(RefCell::new(Environment::new()));
+    let interpreter = Interpreter::new();
     let input = "
         nums_lt := 2 < 3;
         nums_le := 2 <= 2;
@@ -20,13 +26,15 @@ fn test_numeric_comparison() {
         nums_ge := 4 >= 4;
         nums_ne := 12 != 71;
         nums_eq := 42 == 42;
-        final := true == nums_lt == nums_le == nums_gt == nums_ge == nums_ne == nums_eq
-        final
     ";
-    assert_eq!(
-        execute_env_or_panic(input, Rc::clone(&env)),
-        RuntimeValue::Boolean(true)
-    );
+    execute_env_or_panic(input, &interpreter);
+
+    assert_bool(&interpreter, "nums_lt", true);
+    assert_bool(&interpreter, "nums_le", true);
+    assert_bool(&interpreter, "nums_gt", true);
+    assert_bool(&interpreter, "nums_ge", true);
+    assert_bool(&interpreter, "nums_ne", true);
+    assert_bool(&interpreter, "nums_eq", true);
 }
 
 #[test]
@@ -56,51 +64,36 @@ fn test_invalid_type_op() {
 
 #[test]
 fn test_nil_ops() {
-    let env = Rc::new(RefCell::new(Environment::new()));
+    let interpreter = Interpreter::new();
     let input = "
-        test1 := 5 == 5;        // Should be true
-        test2 := 5 == 5.0;      // Should be true (using f64 internally)
-        test3 := nil == nil;    // Should be true
-        test4 := 5 == nil;      // Should be false
+        ints_eq := 5 == 5;          // true
+        nums_eq := 5 == 5.0;        // true (using f64 internally)
+        nil_eq := nil == nil;       // true
+        types_eq := 5 == nil;       // false
     ";
+    execute_env_or_panic(input, &interpreter);
 
-    execute_env(input, Rc::clone(&env)).unwrap();
-
-    assert_eq!(
-        env.borrow().resolve("test1"),
-        Some(RuntimeValue::Boolean(true))
-    );
-    assert_eq!(
-        env.borrow().resolve("test2"),
-        Some(RuntimeValue::Boolean(true))
-    );
-    assert_eq!(
-        env.borrow().resolve("test3"),
-        Some(RuntimeValue::Boolean(true))
-    );
-    assert_eq!(
-        env.borrow().resolve("test4"),
-        Some(RuntimeValue::Boolean(false))
-    );
+    assert_bool(&interpreter, "ints_eq", true);
+    assert_bool(&interpreter, "nums_eq", true);
+    assert_bool(&interpreter, "nil_eq", true);
+    assert_bool(&interpreter, "types_eq", false);
 }
 
 #[test]
 fn test_off_by_one() {
-    let env = Rc::new(RefCell::new(Environment::new()));
+    let interpreter = Interpreter::new();
     let input = "
-        test1 := 10 > 5;        // true
-        test2 := 10 >= 10;      // true
-        test3 := 5 < 10;        // true
-        test4 := 5 <= 5;        // true
-        test5 := 5 != 10;       // true
+        test1 := 10 > 5;            // true
+        test2 := 10 >= 10;          // true
+        test3 := 5 < 10;            // true
+        test4 := 5 <= 5;            // true
+        test5 := 5 != 10;           // true
     ";
+    execute_env_or_panic(input, &interpreter);
 
-    execute_env(input, Rc::clone(&env)).unwrap();
-
-    let true_val = Some(RuntimeValue::Boolean(true));
-    assert_eq!(env.borrow().resolve("test1"), true_val);
-    assert_eq!(env.borrow().resolve("test2"), true_val);
-    assert_eq!(env.borrow().resolve("test3"), true_val);
-    assert_eq!(env.borrow().resolve("test4"), true_val);
-    assert_eq!(env.borrow().resolve("test5"), true_val);
+    assert_bool(&interpreter, "test1", true);
+    assert_bool(&interpreter, "test2", true);
+    assert_bool(&interpreter, "test3", true);
+    assert_bool(&interpreter, "test4", true);
+    assert_bool(&interpreter, "test5", true);
 }

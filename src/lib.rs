@@ -1,13 +1,21 @@
 pub mod ast;
 pub mod builtins;
-pub mod eval;
+pub mod interpreter;
 pub mod parser;
 pub mod runtime;
 pub mod token;
 
+pub fn execute(input: &str) -> Result<runtime::RuntimeValue, String> {
+    execute_env(input, &interpreter::Interpreter::new())
+}
+
+pub fn execute_or_panic(input: &str) -> runtime::RuntimeValue {
+    execute_env_or_panic(input, &interpreter::Interpreter::new())
+}
+
 pub fn execute_env(
     input: &str,
-    env: std::rc::Rc<std::cell::RefCell<runtime::Environment>>,
+    interpreter: &interpreter::Interpreter,
 ) -> Result<runtime::RuntimeValue, String> {
     let tokens = token::Scanner::new(input)
         .scan()
@@ -17,25 +25,12 @@ pub fn execute_env(
         .parse()
         .map_err(|errors| parser::Parser::report(&errors))?;
 
-    eval::evaluate(expr, env)
-}
-
-pub fn execute(input: &str) -> Result<runtime::RuntimeValue, String> {
-    use runtime::Environment;
-    use std::cell::RefCell;
-    use std::rc::Rc;
-
-    let env: Rc<RefCell<runtime::Environment>> = Rc::new(RefCell::new(Environment::new()));
-    execute_env(input, env)
+    interpreter.interpret(expr)
 }
 
 pub fn execute_env_or_panic(
     input: &str,
-    env: std::rc::Rc<std::cell::RefCell<runtime::Environment>>,
+    interpreter: &interpreter::Interpreter,
 ) -> runtime::RuntimeValue {
-    execute_env(input, env).expect("Evaluation should run correctly")
-}
-
-pub fn execute_or_panic(input: &str) -> runtime::RuntimeValue {
-    execute(input).expect("Evaluation should run correctly")
+    execute_env(input, interpreter).expect("Evaluation should run correctly")
 }

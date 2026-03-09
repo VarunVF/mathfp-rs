@@ -1,8 +1,6 @@
-use mathfp::runtime::{Environment, RuntimeValue};
+use mathfp::interpreter::Interpreter;
+use mathfp::runtime::RuntimeValue;
 use mathfp::{execute, execute_env_or_panic, execute_or_panic};
-
-use std::cell::RefCell;
-use std::rc::Rc;
 
 #[test]
 fn test_complex_conditional_logic() {
@@ -15,8 +13,8 @@ fn test_complex_conditional_logic() {
     assert_eq!(execute(input), Ok(RuntimeValue::Nil));
 
     // expression nesting
-    let input2 = "x := 10; 5 + (if x then 10 else 0)";
-    assert_eq!(execute(input2), Ok(RuntimeValue::Number(15.0)));
+    let input = "x := 10; 5 + (if x then 10 else 0)";
+    assert_eq!(execute(input), Ok(RuntimeValue::Number(15.0)));
 }
 
 #[test]
@@ -52,7 +50,7 @@ fn test_closures_and_higher_order() {
 
 #[test]
 fn test_nested_shadowing() {
-    let env = Rc::new(RefCell::new(Environment::new()));
+    let interpreter = Interpreter::new();
     let input = "
         val := 100;
         f := x |-> val := x + x;
@@ -60,13 +58,13 @@ fn test_nested_shadowing() {
     ";
 
     assert_eq!(
-        execute_env_or_panic(input, Rc::clone(&env)),
+        execute_env_or_panic(input, &interpreter),
         RuntimeValue::Number(20.0)
     );
     // Check that global val is still 100
     assert_eq!(
-        env.borrow().resolve("val"),
-        Some(RuntimeValue::Number(100.0))
+        execute_env_or_panic("val", &interpreter),
+        RuntimeValue::Number(100.0)
     );
 }
 
@@ -112,12 +110,12 @@ fn test_mutual_recursion() {
 #[test]
 fn test_closure_equality() {
     // Closures should not be equal
-    let env = Rc::new(RefCell::new(Environment::new()));
+    let interpreter = Interpreter::new();
 
-    execute_env_or_panic("make_adder := x |-> (y |-> x + y)", Rc::clone(&env));
+    execute_env_or_panic("make_adder := x |-> (y |-> x + y)", &interpreter);
 
-    let add5 = execute_env_or_panic("make_adder(5)", Rc::clone(&env));
-    let add10 = execute_env_or_panic("make_adder(10)", Rc::clone(&env));
+    let add5 = execute_env_or_panic("make_adder(5)", &interpreter);
+    let add10 = execute_env_or_panic("make_adder(10)", &interpreter);
 
     assert_ne!(
         add5, add10,
@@ -132,7 +130,7 @@ fn test_lexical_scope_isolation() {
         f := n |-> x + n;
         
         caller := dummy |-> {
-x := 100;
+            x := 100;
             f(5)
         };
         

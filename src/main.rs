@@ -1,39 +1,24 @@
-use std::cell::RefCell;
 use std::fs;
 use std::io::{self, Write};
-use std::rc::Rc;
 
-use mathfp::runtime::RuntimeValue;
-use mathfp::{eval, parser, runtime, token};
+use mathfp::{execute_env, interpreter, runtime};
 
 fn usage() {
     println!("Usage: mathfp [file_name]");
-}
-
-fn run(source: &str, env: Rc<RefCell<runtime::Environment>>) -> Result<RuntimeValue, String> {
-    let tokens = token::Scanner::new(source)
-        .scan()
-        .map_err(|errors| token::Scanner::report(&errors))?;
-
-    let program = parser::Parser::new(tokens)
-        .parse()
-        .map_err(|errors| parser::Parser::report(&errors))?;
-
-    eval::evaluate(program, env)
 }
 
 fn run_file(file_name: &str) -> Result<(), String> {
     let contents = fs::read_to_string(file_name)
         .map_err(|e| format!("Could not read file {file_name}: {e}"))?;
 
-    let env = Rc::new(RefCell::new(runtime::Environment::new()));
-    let _ = run(&contents, env).map_err(|e| eprintln!("{e}"));
+    let interpreter = interpreter::Interpreter::new();
+    let _ = execute_env(&contents, &interpreter).map_err(|e| eprintln!("{e}"));
 
     Ok(())
 }
 
 fn run_repl() -> Result<(), String> {
-    let env = Rc::new(RefCell::new(runtime::Environment::new()));
+    let interpreter = interpreter::Interpreter::new();
 
     loop {
         print!(">>> ");
@@ -49,9 +34,9 @@ fn run_repl() -> Result<(), String> {
         match bytes_read {
             0 => return Ok(()), // EOF
             _ => {
-                match run(&input, Rc::clone(&env)) {
+                match execute_env(&input, &interpreter) {
                     Ok(value) => {
-                        if value != RuntimeValue::Nil {
+                        if value != runtime::RuntimeValue::Nil {
                             println!("{value}")
                         }
                     }
