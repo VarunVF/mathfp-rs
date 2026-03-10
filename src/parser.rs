@@ -1,9 +1,18 @@
+use core::fmt::Arguments;
+
 use crate::ast::{Expr, LiteralValue};
 use crate::token::{Token, TokenType};
 
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
+}
+
+/// Creates a parser message String that quotes the current line and column number.
+macro_rules! parser_fmt {
+    ($parser:expr, $($arg:tt)*) => {
+        $parser.format_error(format_args!($($arg)*))
+    };
 }
 
 impl Parser {
@@ -40,18 +49,11 @@ impl Parser {
     }
 
     /// Creates an error `Result` that quotes the current line and column number.
-    fn make_error(&self, message: &str) -> Result<Expr, String> {
-        let default = &Token {
-            kind: TokenType::Eof,
-            lexeme: String::new(),
-            line: 1,
-            column: 1,
-        };
-        let token = self.current().unwrap_or(default);
-        Err(format!(
-            "[Line {}, Col {}] {}",
-            token.line, token.column, message
-        ))
+    fn format_error(&self, args: Arguments) -> String {
+        match self.current() {
+            Some(token) => format!("[Line {}, Col {}] {}", token.line, token.column, args),
+            None => format!("[End of file] {}", args),
+        }
     }
 
     fn is_at_end(&self) -> bool {
@@ -81,19 +83,19 @@ impl Parser {
                 self.advance();
                 Ok(())
             } else {
-                // Ignore the success value as it is definitely Err
-                self.make_error(&format!(
+                Err(parser_fmt!(
+                    self,
                     "Expected token of type {:?}, found {:?}",
-                    expected_kind, found_kind
+                    expected_kind,
+                    found_kind
                 ))
-                .map(|_| ())
             }
         } else {
-            self.make_error(&format!(
+            Err(parser_fmt!(
+                self,
                 "Expected token of type {:?}, but no token was found",
                 expected_kind
             ))
-            .map(|_| ())
         }
     }
 
@@ -143,11 +145,12 @@ impl Parser {
             Expr::Empty => Ok(expr),
             _ => match self.current_kind() {
                 Some(TokenType::EndStmt | TokenType::Eof) => Ok(expr),
-                Some(kind) => self.make_error(&format!(
+                Some(kind) => Err(parser_fmt!(
+                    self,
                     "Expected ; or newline after expression, found {:?}",
                     kind
                 )),
-                None => self.make_error("Expected ; or newline after expression"),
+                None => Err(parser_fmt!(self, "Expected ; or newline after expression")),
             },
         }
     }
@@ -156,7 +159,7 @@ impl Parser {
         match self.current_kind() {
             Some(TokenType::EndStmt) => self.empty_expr(),
             Some(TokenType::If) => self.if_expr(),
-            Some(TokenType::Eof) | None => self.make_error("Expected an expression"),
+            Some(TokenType::Eof) | None => Err(parser_fmt!(self, "Expected an expression")),
             Some(_) => match self.lookahead_kind() {
                 Some(TokenType::Equal) => self.assignment(),
                 Some(TokenType::Binding) => self.binding(),
@@ -196,18 +199,26 @@ impl Parser {
     fn assignment(&mut self) -> Result<Expr, String> {
         let name = match self.primary()? {
             Expr::Variable(name) => name,
-            _ => return self.make_error("Expected an identifier to assign a value"),
+            _ => {
+                return Err(parser_fmt!(
+                    self,
+                    "Expected an identifier to assign a value"
+                ));
+            }
         };
         let expr = match self.current_kind() {
             Some(TokenType::Equal) => {
                 self.advance();
                 self.expression()?
             }
-            Some(kind) => self.make_error(&format!(
-                "Expected an assignment expression, found {:?}",
-                kind
-            ))?,
-            None => self.make_error("Expected an expression")?,
+            Some(kind) => {
+                return Err(parser_fmt!(
+                    self,
+                    "Expected an assignment expression, found {:?}",
+                    kind
+                ));
+            }
+            None => return Err(parser_fmt!(self, "Expected an expression")),
         };
         Ok(Expr::Assign {
             name,
@@ -218,7 +229,9 @@ impl Parser {
     fn binding(&mut self) -> Result<Expr, String> {
         let name = match self.primary()? {
             Expr::Variable(name) => name,
-            _ => return self.make_error("Expected an identifier to bind a value"),
+            _ => {
+                return Err(parser_fmt!(self, "Expected an identifier to bind a value"));
+            }
         };
         let expr = match self.current_kind() {
             Some(TokenType::Binding) => {
@@ -226,9 +239,13 @@ impl Parser {
                 self.expression()?
             }
             Some(kind) => {
-                self.make_error(&format!("Expected a binding expression, found {:?}", kind))?
+                return Err(parser_fmt!(
+                    self,
+                    "Expected a binding expression, found {:?}",
+                    kind
+                ));
             }
-            None => self.make_error("Expected an expression")?,
+            None => return Err(parser_fmt!(self, "Expected an expression")),
         };
         Ok(Expr::Binding {
             name,
@@ -239,7 +256,12 @@ impl Parser {
     fn function_def(&mut self) -> Result<Expr, String> {
         let param = match self.current_kind() {
             Some(TokenType::Identifier(name)) => name,
-            _ => return self.make_error("Expected a parameter name before |-> (MapsTo)"),
+            _ => {
+                return Err(parser_fmt!(
+                    self,
+                    "Expected a parameter name before |-> (MapsTo)"
+                ));
+            }
         };
         self.advance();
 
@@ -265,9 +287,10 @@ impl Parser {
             Ok(Expr::FunctionBody { statements })
         } else {
             match self.current_kind() {
-                Some(TokenType::EndStmt) | None => {
-                    self.make_error("Function body cannot be empty, use {} instead")
-                }
+                Some(TokenType::EndStmt) | None => Err(parser_fmt!(
+                    self,
+                    "Function body cannot be empty, use {{}} instead"
+                )),
                 Some(_) => self.expression(),
             }
         }
@@ -279,7 +302,7 @@ impl Parser {
         while self.matches_any(&[TokenType::Plus, TokenType::Minus]) {
             let op = match self.current() {
                 Some(op) => op.clone(),
-                None => return self.make_error("Expected '+' or '-'"),
+                None => return Err(parser_fmt!(self, "Expected '+' or '-'")),
             };
             self.advance();
             let right = self.equality()?;
@@ -299,7 +322,7 @@ impl Parser {
         while self.matches_any(&[TokenType::BangEqual, TokenType::EqualEqual]) {
             let op = match self.current() {
                 Some(op) => op.clone(),
-                None => return self.make_error("Expected '==' or '!='"),
+                None => return Err(parser_fmt!(self, "Expected '==' or '!='")),
             };
             self.advance();
             let right = self.comparison()?;
@@ -324,7 +347,9 @@ impl Parser {
         ]) {
             let op = match self.current() {
                 Some(op) => op.clone(),
-                None => return self.make_error("Expected one of '>', '>=', '<', '<='"),
+                None => {
+                    return Err(parser_fmt!(self, "Expected one of '>', '>=', '<', '<='"));
+                }
             };
             self.advance();
             let right = self.factor()?;
@@ -344,7 +369,7 @@ impl Parser {
         while self.matches_any(&[TokenType::Star, TokenType::Slash]) {
             let op = match self.current() {
                 Some(op) => op.clone(),
-                None => return self.make_error("Expected '*' or '/'"),
+                None => return Err(parser_fmt!(self, "Expected '*' or '/'")),
             };
             self.advance();
             let right = self.unary()?;
@@ -362,7 +387,7 @@ impl Parser {
         if self.matches_any(&[TokenType::Bang, TokenType::Minus]) {
             let op = match self.current() {
                 Some(op) => op.clone(),
-                None => return self.make_error("Expected '!' or '-'"),
+                None => return Err(parser_fmt!(self, "Expected '!' or '-'")),
             };
             self.advance();
             let right = Box::new(self.function_call()?);
@@ -405,10 +430,12 @@ impl Parser {
                 Ok(Expr::Literal(LiteralValue::String(message.clone())))
             }
             Some(TokenType::LeftParen) => self.grouping(),
-            Some(kind) => {
-                self.make_error(&format!("Expected a primary expression, found {:?}", kind))
-            }
-            None => self.make_error("Expected an expression"),
+            Some(kind) => Err(parser_fmt!(
+                self,
+                "Expected a primary expression, found {:?}",
+                kind
+            )),
+            None => Err(parser_fmt!(self, "Expected an expression")),
         }
     }
 
@@ -420,11 +447,12 @@ impl Parser {
                 self.advance(); // closing )
                 Ok(Expr::Grouping(Box::new(expr)))
             }
-            Some(kind) => self.make_error(&format!(
+            Some(kind) => Err(parser_fmt!(
+                self,
                 "Expected ) after parenthesised expression, found {:?}",
                 kind
             )),
-            None => self.make_error("Expected an expression after '('"),
+            None => Err(parser_fmt!(self, "Expected an expression after '('")),
         }
     }
 }
