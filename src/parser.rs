@@ -1,6 +1,6 @@
 use core::fmt::Arguments;
 
-use crate::ast::{Expr, LiteralValue};
+use crate::ast::{Expr, LiteralValue, MatchArm};
 use crate::token::{Token, TokenType};
 
 pub struct Parser {
@@ -159,6 +159,7 @@ impl Parser {
         match self.current_kind() {
             Some(TokenType::EndStmt) => self.empty_expr(),
             Some(TokenType::If) => self.if_expr(),
+            Some(TokenType::Match) => self.match_expr(),
             Some(TokenType::Eof) | None => Err(parser_fmt!(self, "Expected an expression")),
             Some(_) => match self.lookahead_kind() {
                 Some(TokenType::Equal) => self.assignment(),
@@ -194,6 +195,34 @@ impl Parser {
             then_expr,
             else_expr,
         })
+    }
+
+    fn match_expr(&mut self) -> Result<Expr, String> {
+        self.consume(TokenType::Match)?;
+        self.consume(TokenType::LeftBrace)?;
+
+        let mut arms = vec![];
+        arms.push(self.match_arm().ok_or("Expected at least one match arm")?);
+
+        while let Some(TokenType::Comma) = self.current_kind() {
+            self.consume(TokenType::Comma)?;
+            if let Some(arm) = self.match_arm() {
+                arms.push(arm);
+            } else {
+                break;
+            }
+        }
+
+        self.consume(TokenType::RightBrace)?;
+        Ok(Expr::Match { arms })
+    }
+
+    fn match_arm(&mut self) -> Option<MatchArm> {
+        let pattern = Box::new(self.expression().ok()?);
+        self.consume(TokenType::FatArrow).ok()?;
+        let body = Box::new(self.expression().ok()?);
+
+        Some(MatchArm { pattern, body })
     }
 
     fn assignment(&mut self) -> Result<Expr, String> {

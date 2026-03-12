@@ -3,9 +3,9 @@ make_counter := _ |-> {
     count := _ |-> {
         i = i + 1;
         println(i);
-    }
+    };
     count
-}
+};
 
 counter := make_counter(nil);
 counter(nil);   // 1

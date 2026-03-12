@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::ast::{Expr, LiteralValue};
+use crate::ast::{Expr, LiteralValue, MatchArm};
 use crate::runtime::{Environment, RuntimeValue};
 use crate::token::{Token, TokenType};
 
@@ -22,7 +22,7 @@ impl Interpreter {
         }
     }
 
-    pub fn interpret(&self, expr: Expr) -> Result<RuntimeValue, String> {
+    pub fn interpret(&self, expr: &Expr) -> Result<RuntimeValue, String> {
         Self::execute(expr, Rc::clone(&self.globals))
     }
 
@@ -41,38 +41,43 @@ impl Interpreter {
         ))
     }
 
-    fn execute(expr: Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+    fn execute(expr: &Expr, env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
         match expr {
             Expr::Program { statements } => Self::execute_program(statements, Rc::clone(&env)),
             Expr::Literal(literal) => Self::execute_literal(literal),
             Expr::Binary { left, op, right } => {
-                Self::execute_binary(*left, op, *right, Rc::clone(&env))
+                Self::execute_binary(left, op, right, Rc::clone(&env))
             }
-            Expr::Unary { op, right } => Self::execute_unary(op, *right, Rc::clone(&env)),
-            Expr::Grouping(expr) => Self::execute(*expr, Rc::clone(&env)),
-            Expr::Binding { name, expr } => Self::execute_binding(name, *expr, Rc::clone(&env)),
-            Expr::Assign { name, expr } => Self::execute_assign(name, *expr, Rc::clone(&env)),
-            Expr::Variable(name) => Self::execute_variable(name, Rc::clone(&env)),
+            Expr::Unary { op, right } => Self::execute_unary(op, right, Rc::clone(&env)),
+            Expr::Grouping(expr) => Self::execute(expr, Rc::clone(&env)),
+            Expr::Binding { name, expr } => {
+                Self::execute_binding(name.clone(), expr, Rc::clone(&env))
+            }
+            Expr::Assign { name, expr } => {
+                Self::execute_assign(name.clone(), expr, Rc::clone(&env))
+            }
+            Expr::Variable(name) => Self::execute_variable(name.clone(), Rc::clone(&env)),
             Expr::If {
                 cond_expr,
                 then_expr,
                 else_expr,
-            } => Self::execute_if(*cond_expr, *then_expr, *else_expr, Rc::clone(&env)),
+            } => Self::execute_if(cond_expr, then_expr, else_expr, Rc::clone(&env)),
+            Expr::Match { arms } => Self::execute_match(arms, Rc::clone(&env)),
             Expr::FunctionDef { param, body } => {
-                Self::execute_function_def(param, *body, Rc::clone(&env))
+                Self::execute_function_def(param.clone(), body, Rc::clone(&env))
             }
             Expr::FunctionBody { statements } => {
                 Self::execute_function_body(statements, Rc::clone(&env))
             }
             Expr::FunctionCall { func, arg } => {
-                Self::execute_function_call(*func, *arg, Rc::clone(&env))
+                Self::execute_function_call(func, arg, Rc::clone(&env))
             }
             Expr::Empty => unreachable!("The program should never contain Empty expressions"),
         }
     }
 
     fn execute_program(
-        statements: Vec<Expr>,
+        statements: &[Expr],
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
         let mut result = RuntimeValue::Nil;
@@ -82,19 +87,19 @@ impl Interpreter {
         Ok(result)
     }
 
-    fn execute_literal(literal: LiteralValue) -> Result<RuntimeValue, String> {
+    fn execute_literal(literal: &LiteralValue) -> Result<RuntimeValue, String> {
         match literal {
-            LiteralValue::Number(n) => Ok(RuntimeValue::Number(n)),
-            LiteralValue::String(msg) => Ok(RuntimeValue::String(msg)),
+            LiteralValue::Number(n) => Ok(RuntimeValue::Number(*n)),
+            LiteralValue::String(msg) => Ok(RuntimeValue::String(msg.clone())),
             LiteralValue::Nil => Ok(RuntimeValue::Nil),
-            LiteralValue::Boolean(cond) => Ok(RuntimeValue::Boolean(cond)),
+            LiteralValue::Boolean(cond) => Ok(RuntimeValue::Boolean(*cond)),
         }
     }
 
     fn execute_binary(
-        left: Expr,
-        op: Token,
-        right: Expr,
+        left: &Expr,
+        op: &Token,
+        right: &Expr,
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
         let left = Self::execute(left, Rc::clone(&env))?;
@@ -120,11 +125,11 @@ impl Interpreter {
                     (RuntimeValue::String(left), RuntimeValue::String(right)) => {
                         Ok(RuntimeValue::String(format!("{left}{right}")))
                     }
-                    (left, right) => Self::make_unsupported_binary_expr_err(&left, &right, &op),
+                    (left, right) => Self::make_unsupported_binary_expr_err(&left, &right, op),
                 },
                 // Minus, Star, Slash not defined for other types.
                 TokenType::Minus | TokenType::Star | TokenType::Slash => {
-                    Self::make_unsupported_binary_expr_err(&left, &right, &op)
+                    Self::make_unsupported_binary_expr_err(&left, &right, op)
                 }
                 TokenType::Less => Ok(RuntimeValue::Boolean(left < right)),
                 TokenType::LessEqual => Ok(RuntimeValue::Boolean(left <= right)),
@@ -138,12 +143,12 @@ impl Interpreter {
     }
 
     fn execute_unary(
-        op: Token,
-        right: Expr,
+        op: &Token,
+        right: &Expr,
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
         let r = Self::execute(right, env)?;
-        match (op.kind, r.clone()) {
+        match (&op.kind, r.clone()) {
             (TokenType::Minus, RuntimeValue::Number(n)) => Ok(RuntimeValue::Number(-n)),
             (TokenType::Minus, _) => Err("Operand for unary '-' must be a number".to_string()),
             (TokenType::Bang, RuntimeValue::Boolean(cond)) => Ok(RuntimeValue::Boolean(!cond)),
@@ -154,7 +159,7 @@ impl Interpreter {
 
     fn execute_binding(
         name: String,
-        expr: Expr,
+        expr: &Expr,
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
         let value = Self::execute(expr, Rc::clone(&env))?;
@@ -164,7 +169,7 @@ impl Interpreter {
 
     fn execute_assign(
         name: String,
-        expr: Expr,
+        expr: &Expr,
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
         let value = Self::execute(expr, Rc::clone(&env))?;
@@ -182,9 +187,9 @@ impl Interpreter {
     }
 
     fn execute_if(
-        cond_expr: Expr,
-        then_expr: Expr,
-        else_expr: Expr,
+        cond_expr: &Expr,
+        then_expr: &Expr,
+        else_expr: &Expr,
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
         // Lazy evaluation of branches
@@ -195,20 +200,35 @@ impl Interpreter {
         }
     }
 
+    fn execute_match(
+        arms: &[MatchArm],
+        env: Rc<RefCell<Environment>>,
+    ) -> Result<RuntimeValue, String> {
+        for arm in arms {
+            let cond = Self::execute(&arm.pattern, Rc::clone(&env))?;
+            if Self::is_truthy(&cond) {
+                return Self::execute(&arm.body, Rc::clone(&env));
+            }
+        }
+
+        // Match arms are non-exhaustive.
+        Ok(RuntimeValue::Nil)
+    }
+
     fn execute_function_def(
         param: String,
-        body: Expr,
+        body: &Expr,
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
         Ok(RuntimeValue::Function {
             arg_name: param,
-            body,
+            body: body.clone(),
             closure: Rc::clone(&env),
         })
     }
 
     fn execute_function_body(
-        statements: Vec<Expr>,
+        statements: &[Expr],
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
         // An empty function body should return nil
@@ -221,8 +241,8 @@ impl Interpreter {
     }
 
     fn execute_function_call(
-        func: Expr,
-        arg: Expr,
+        func: &Expr,
+        arg: &Expr,
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
         let function = Self::execute(func, Rc::clone(&env))?;
@@ -238,7 +258,7 @@ impl Interpreter {
                 // The parent of the new scope is the closure
                 let local_env = Rc::new(RefCell::new(Environment::with_parent(closure)));
                 local_env.borrow_mut().bind(arg_name, arg_value)?;
-                Self::execute(body, local_env)
+                Self::execute(&body, local_env)
             }
             RuntimeValue::NativeFunction { name: _, function } => {
                 let arg_value = Self::execute(arg, Rc::clone(&env))?;
@@ -280,12 +300,12 @@ mod tests {
     fn test_literals() {
         let interpreter = Interpreter::new();
         let num_res = interpreter
-            .interpret(Expr::Literal(LiteralValue::Number(42.0)))
+            .interpret(&Expr::Literal(LiteralValue::Number(42.0)))
             .unwrap();
         assert_eq!(num_res, RuntimeValue::Number(42.0));
 
         let str_res = interpreter
-            .interpret(Expr::Literal(LiteralValue::String("MathFP".into())))
+            .interpret(&Expr::Literal(LiteralValue::String("MathFP".into())))
             .unwrap();
         assert_eq!(str_res, RuntimeValue::String("MathFP".into()));
     }
@@ -301,7 +321,7 @@ mod tests {
             right: Box::new(Expr::Literal(LiteralValue::Number(5.0))),
         };
         assert_eq!(
-            interpreter.interpret(expr).unwrap(),
+            interpreter.interpret(&expr).unwrap(),
             RuntimeValue::Number(15.0)
         );
     }
@@ -315,12 +335,12 @@ mod tests {
             name: "x".into(),
             expr: Box::new(Expr::Literal(LiteralValue::Number(100.0))),
         };
-        interpreter.interpret(bind_expr).unwrap();
+        interpreter.interpret(&bind_expr).unwrap();
 
         // resolve x
         let var_expr = Expr::Variable("x".into());
         assert_eq!(
-            interpreter.interpret(var_expr).unwrap(),
+            interpreter.interpret(&var_expr).unwrap(),
             RuntimeValue::Number(100.0)
         );
     }
@@ -336,14 +356,14 @@ mod tests {
             expr: Box::new(Expr::Literal(LiteralValue::Number(5.0))),
         };
 
-        interpreter.interpret(expr).unwrap();
+        interpreter.interpret(&expr).unwrap();
     }
 
     #[test]
     fn test_unresolved_variable() {
         let interpreter = Interpreter::new();
 
-        let result = interpreter.interpret(Expr::Variable("x".into()));
+        let result = interpreter.interpret(&Expr::Variable("x".into()));
         assert_eq!(result.unwrap_err(), "Name 'x' is not defined");
     }
 
@@ -354,7 +374,7 @@ mod tests {
         // (10)
         let expr = Expr::Grouping(Box::new(Expr::Literal(LiteralValue::Number(10.0))));
         assert_eq!(
-            interpreter.interpret(expr).unwrap(),
+            interpreter.interpret(&expr).unwrap(),
             RuntimeValue::Number(10.0)
         );
     }
@@ -370,7 +390,7 @@ mod tests {
             else_expr: Box::new(Expr::Literal(LiteralValue::Number(20.0))),
         };
         assert_eq!(
-            interpreter.interpret(expr).unwrap(),
+            interpreter.interpret(&expr).unwrap(),
             RuntimeValue::Number(10.0)
         );
 
@@ -381,7 +401,7 @@ mod tests {
             else_expr: Box::new(Expr::Literal(LiteralValue::Number(20.0))),
         };
         assert_eq!(
-            interpreter.interpret(expr_false).unwrap(),
+            interpreter.interpret(&expr_false).unwrap(),
             RuntimeValue::Number(20.0)
         );
     }
@@ -406,7 +426,7 @@ mod tests {
         };
         // Program should return the result of the last statement (3.0)
         assert_eq!(
-            interpreter.interpret(prog).unwrap(),
+            interpreter.interpret(&prog).unwrap(),
             RuntimeValue::Number(3.0)
         );
     }

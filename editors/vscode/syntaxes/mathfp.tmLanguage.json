@@ -24,6 +24,9 @@
 			"include": "#operators"
 		},
 		{
+			"include": "#constants"
+		},
+		{
 			"include": "#variables"
 		}
 	],
@@ -76,7 +79,7 @@
 			"patterns": [
 				{
 					"name": "keyword.control.mfp",
-					"match": "\\b(if|then|else)\\b"
+					"match": "\\b(if|then|else|match)\\b"
 				}
 			]
 		},
@@ -111,7 +114,7 @@
 			"patterns": [
 				{
 					"name": "keyword.operator.mfp",
-					"match": ":=|\\|->|==|!=|<=|>=|[+\\-*/<>]"
+					"match": ":=|\\|->|=>|==|!=|<=|>=|[+\\-*/<>]"
 				}
 			]
 		},
@@ -120,6 +123,18 @@
 				{
 					"name": "variable.name.mfp",
 					"match": "[A-Za-z_][A-Za-z0-9_]*"
+				}
+			]
+		},
+		"constants": {
+			"patterns": [
+				{
+					"name": "constant.language.boolean.mfp",
+					"match": "\\b(true|false)\\b"
+				},
+				{
+					"name": "constant.language.null.mfp",
+					"match": "\\b(nil)\\b"
 				}
 			]
 		}

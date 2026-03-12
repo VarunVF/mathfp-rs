@@ -55,12 +55,12 @@ Variables are declared using the `:=` operator.
 A variable can only be declared once in the same scope.
 
 ```mathfp
-x := 10; y := x * 5
+x := 10; y := x * 5;
 ```
 
 Most variables can be modified using the `=` operator.
 ```mathfp
-x = 2 * y
+x = 2 * y;
 ```
 
 ### Conditionals
@@ -73,7 +73,18 @@ if y then (z := 1) else (z := 2)
 
 If you omit the `else` branch but the condition is false, `nil` is implicitly returned.
 ```mathfp
-res := if 0 then 5  // res is now nil
+res := if 0 then 5;  // res is now nil
+```
+
+`match` expressions can be used to define case-by-case logic or piecewise functions.
+
+```mathfp
+a := 5;
+b := 7;
+x := match {
+    b == 0 => nil,
+    b != 0 => a / b,
+};
 ```
 
 ### Functions
@@ -81,7 +92,7 @@ res := if 0 then 5  // res is now nil
 Functions use the `|->` (maps-to) operator:
 
 ```mathfp
-f := x |-> x * x
+f := x |-> x * x;
 f(2)
 ```
 
@@ -94,7 +105,7 @@ hypotenuse := a |-> b |-> {
     a2 := a * a;
     b2 := b * b;
     sqrt(a2 + b2)
-}
+};
 hypotenuse(3)(4)
 ```
 

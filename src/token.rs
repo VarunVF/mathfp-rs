@@ -17,6 +17,7 @@ pub enum TokenType {
     RightParen,
     LeftBrace,
     RightBrace,
+    Comma,
 
     // One or two character tokens
     Bang,
@@ -37,9 +38,11 @@ pub enum TokenType {
     If,
     Then,
     Else,
+    Match,
 
     // Special symbols
     MapsTo,
+    FatArrow,
     Binding,
     EndStmt,
 

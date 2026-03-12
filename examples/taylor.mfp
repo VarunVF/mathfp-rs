@@ -3,7 +3,7 @@ measure := f |-> {
     t1 := clock(nil);
     f(nil);
     clock(nil) - t1
-}
+};
 
 // Rough Taylor series approximation
 custom_sin := x |-> {
@@ -14,32 +14,35 @@ custom_sin := x |-> {
     fact := n |-> if n then n*fact(n-1) else 1;
 
     // first 4 terms
-    x - pow(x)(3) / fact(3) + pow(x)(5) / fact(5) - pow(x)(7) / fact(7)
-}
+    x
+    - pow(x)(3) / fact(3)
+    + pow(x)(5) / fact(5)
+    - pow(x)(7) / fact(7)
+};
 
 // Pass lambdas so that they don't execute immediately
-x := 3.0
-builtin_time := measure(_ |-> sin(x))
-custom_time := measure(_ |-> custom_sin(x))
+x := 3.0;
+builtin_time := measure(_ |-> sin(x));
+custom_time := measure(_ |-> custom_sin(x));
 
-print("     Results using x: "); println(x)
-print("Builtin sin time (s): "); println(builtin_time)
-print(" Custom sin time (s): "); println(custom_time)
-print(" Time difference (s): "); println(custom_time - builtin_time)
-println("")
+print("     Results using x: "); println(x);
+print("Builtin sin time (s): "); println(builtin_time);
+print(" Custom sin time (s): "); println(custom_time);
+print(" Time difference (s): "); println(custom_time - builtin_time);
+println("");
 
 report := x |-> {
-    sin_val := sin(x)
-    custom_sin_val := custom_sin(x)
+    sin_val := sin(x);
+    custom_sin_val := custom_sin(x);
 
-    print("Results using x: "); println(x)
-    print(" Builtin sin(x): "); println(sin_val)
-    print("  Custom sin(x): "); println(custom_sin_val)
-    print("     Difference: "); println(custom_sin_val - sin_val)
-    println("")
-}
+    print("Results using x: "); println(x);
+    print(" Builtin sin(x): "); println(sin_val);
+    print("  Custom sin(x): "); println(custom_sin_val);
+    print("     Difference: "); println(custom_sin_val - sin_val);
+    println("");
+};
 
-report(1.0)
-report(2.0)
-report(3.0)
-report(4.0)
+report(1.0);
+report(2.0);
+report(3.0);
+report(4.0);

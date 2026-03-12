@@ -96,6 +96,7 @@ impl Scanner {
                 }
                 '(' => return self.advance_and_make_token(TokenType::LeftParen, "("),
                 ')' => return self.advance_and_make_token(TokenType::RightParen, ")"),
+                ',' => return self.advance_and_make_token(TokenType::Comma, ","),
                 '{' => return self.advance_and_make_token(TokenType::LeftBrace, "{"),
                 '}' => return self.advance_and_make_token(TokenType::RightBrace, "}"),
                 '!' => {
@@ -108,6 +109,8 @@ impl Scanner {
                 '=' => {
                     if self.match_char('=') {
                         return self.advance_and_make_token(TokenType::EqualEqual, "==");
+                    } else if self.match_char('>') {
+                        return self.advance_and_make_token(TokenType::FatArrow, "=>");
                     } else {
                         return self.advance_and_make_token(TokenType::Equal, "=");
                     }
@@ -128,10 +131,10 @@ impl Scanner {
                 }
                 '|' => return self.maps_to(),
                 ':' => return self.binding(),
-                '\n' | ';' => {
+                ';' => {
                     return self.advance_and_make_token(TokenType::EndStmt, &ch.to_string());
                 }
-                ' ' | '\r' | '\t' => {
+                ' ' | '\n' | '\r' | '\t' => {
                     // Skip whitespace
                     self.advance();
                     continue;
@@ -218,6 +221,7 @@ impl Scanner {
             "if" => self.make_token(TokenType::If, lexeme),
             "then" => self.make_token(TokenType::Then, lexeme),
             "else" => self.make_token(TokenType::Else, lexeme),
+            "match" => self.make_token(TokenType::Match, lexeme),
             _ => self.make_token(TokenType::Identifier(lexeme.to_string()), lexeme),
         }
     }
@@ -343,7 +347,7 @@ mod tests {
     #[test]
     fn test_multiple_stmt() {
         assert_scan(
-            "x := 5.0; y \n",
+            "x := 5.0; y; \n",
             vec![
                 make_token(Identifier("x".to_string())),
                 make_token(Binding),
@@ -454,7 +458,7 @@ mod tests {
     #[test]
     fn test_whitespace_and_newlines() {
         assert_scan(
-            "   x     :=   \t   10  \n",
+            "   x     :=   \t   10  ;  \n",
             vec![
                 make_token(Identifier("x".to_string())),
                 make_token(Binding),

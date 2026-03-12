@@ -26,7 +26,7 @@ pub fn execute_env(
         .parse()
         .map_err(|errors| parser::Parser::report(&errors))?;
 
-    interpreter.interpret(expr)
+    interpreter.interpret(&expr)
 }
 
 pub fn execute_env_or_panic(

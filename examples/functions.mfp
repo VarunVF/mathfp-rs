@@ -1,10 +1,10 @@
-square := x |-> x * x
+square := x |-> x * x;
 
 hypotenuse := a |-> b |-> {
     a2 := square(a);
     b2 := square(b);
     sqrt(a2 + b2)
-}
+};
 
-diagonal := hypotenuse(3)(4)  // 5
+diagonal := hypotenuse(3)(4);  // 5
 println(diagonal)

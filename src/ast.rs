@@ -1,6 +1,12 @@
 use crate::token::Token;
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct MatchArm {
+    pub pattern: Box<Expr>,
+    pub body: Box<Expr>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
     Program {
         statements: Vec<Expr>,
@@ -40,6 +46,9 @@ pub enum Expr {
         cond_expr: Box<Expr>,
         then_expr: Box<Expr>,
         else_expr: Box<Expr>,
+    },
+    Match {
+        arms: Vec<MatchArm>,
     },
     Empty,
 }

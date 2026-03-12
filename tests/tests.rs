@@ -221,7 +221,7 @@ fn test_undefined_name_in_function() {
         main := _ |-> {
             value := no_such_function(nil);
             println(value);
-        }
+        };
         main(nil)
     ";
 

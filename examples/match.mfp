@@ -1,0 +1,7 @@
+divide := a |-> b |-> match {
+    b == 0 => nil,
+    b != 0 => a / b,
+};
+
+println(divide(9)(3));
+println(divide(5)(0));
