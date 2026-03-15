@@ -160,6 +160,7 @@ impl Parser {
             Some(TokenType::EndStmt) => self.empty_expr(),
             Some(TokenType::If) => self.if_expr(),
             Some(TokenType::Match) => self.match_expr(),
+            Some(TokenType::LeftBrace) => self.block_expr(),
             Some(TokenType::Eof) | None => Err(parser_fmt!(self, "Expected an expression")),
             Some(_) => match self.lookahead_kind() {
                 Some(TokenType::Equal) => self.assignment(),
@@ -215,6 +216,21 @@ impl Parser {
 
         self.consume(TokenType::RightBrace)?;
         Ok(Expr::Match { arms })
+    }
+
+    fn block_expr(&mut self) -> Result<Expr, String> {
+        self.consume(TokenType::LeftBrace)?;
+
+        let mut statements: Vec<Expr> = vec![];
+        while !self.matches(TokenType::RightBrace) {
+            let stmt = self.expression()?;
+            if !matches!(stmt, Expr::Empty) {
+                statements.push(stmt);
+            }
+        }
+
+        self.consume(TokenType::RightBrace)?;
+        Ok(Expr::Block { statements })
     }
 
     fn match_arm(&mut self) -> Option<MatchArm> {
@@ -301,27 +317,12 @@ impl Parser {
     }
 
     fn function_body(&mut self) -> Result<Expr, String> {
-        if self.matches(TokenType::LeftBrace) {
-            self.advance();
-
-            let mut statements: Vec<Expr> = vec![];
-            while !self.matches(TokenType::RightBrace) {
-                let expr = self.expression()?;
-                if !matches!(expr, Expr::Empty) {
-                    statements.push(expr);
-                }
-            }
-            self.advance();
-
-            Ok(Expr::FunctionBody { statements })
-        } else {
-            match self.current_kind() {
-                Some(TokenType::EndStmt) | None => Err(parser_fmt!(
-                    self,
-                    "Function body cannot be empty, use {{}} instead"
-                )),
-                Some(_) => self.expression(),
-            }
+        match self.current_kind() {
+            Some(TokenType::EndStmt) | None => Err(parser_fmt!(
+                self,
+                "Function body cannot be empty, use {{}} instead"
+            )),
+            Some(_) => self.expression(),
         }
     }
 

@@ -11,7 +11,7 @@ pub enum Expr {
     Program {
         statements: Vec<Expr>,
     },
-    FunctionBody {
+    Block {
         statements: Vec<Expr>,
     },
     Binary {

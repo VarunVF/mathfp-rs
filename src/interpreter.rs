@@ -66,9 +66,7 @@ impl Interpreter {
             Expr::FunctionDef { param, body } => {
                 Self::execute_function_def(param.clone(), body, Rc::clone(&env))
             }
-            Expr::FunctionBody { statements } => {
-                Self::execute_function_body(statements, Rc::clone(&env))
-            }
+            Expr::Block { statements } => Self::execute_block(statements, Rc::clone(&env)),
             Expr::FunctionCall { func, arg } => {
                 Self::execute_function_call(func, arg, Rc::clone(&env))
             }
@@ -227,16 +225,19 @@ impl Interpreter {
         })
     }
 
-    fn execute_function_body(
+    fn execute_block(
         statements: &[Expr],
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
-        // An empty function body should return nil
+        // An empty block should return nil
         let mut res = RuntimeValue::Nil;
+
+        let local_env = Rc::new(RefCell::new(Environment::with_parent(env)));
         for stmt in statements {
             // If encountered error, stop and return immediately
-            res = Self::execute(stmt, Rc::clone(&env))?;
+            res = Self::execute(stmt, Rc::clone(&local_env))?;
         }
+
         Ok(res)
     }
 

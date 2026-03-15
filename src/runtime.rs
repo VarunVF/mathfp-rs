@@ -291,7 +291,7 @@ mod tests {
         fn make_fn() -> RuntimeValue {
             RuntimeValue::Function {
                 arg_name: "x".into(),
-                body: Expr::FunctionBody { statements: vec![] },
+                body: Expr::Block { statements: vec![] },
                 closure: Rc::new(RefCell::new(Environment::new())),
             }
         }
