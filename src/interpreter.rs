@@ -157,7 +157,7 @@ impl Interpreter {
             (TokenType::Minus, RuntimeValue::Number(n)) => Ok(RuntimeValue::Number(-n)),
             (TokenType::Minus, _) => Err("Operand for unary '-' must be a number".to_string()),
             (TokenType::Bang, RuntimeValue::Boolean(cond)) => Ok(RuntimeValue::Boolean(!cond)),
-            (TokenType::Bang, _) => Ok(RuntimeValue::Boolean(!Self::is_truthy(&r))),
+            (TokenType::Bang, _) => Ok(RuntimeValue::Boolean(!r.is_truthy())),
             _ => unreachable!("There should only be '-' or '!' unary operators"),
         }
     }
@@ -198,7 +198,8 @@ impl Interpreter {
         env: Rc<RefCell<Environment>>,
     ) -> Result<RuntimeValue, String> {
         // Lazy evaluation of branches
-        if Self::is_truthy(&Self::execute(cond_expr, Rc::clone(&env))?) {
+        let cond = Self::execute(cond_expr, Rc::clone(&env))?;
+        if cond.is_truthy() {
             Self::execute(then_expr, env)
         } else {
             Self::execute(else_expr, env)
@@ -211,7 +212,7 @@ impl Interpreter {
     ) -> Result<RuntimeValue, String> {
         for arm in arms {
             let cond = Self::execute(&arm.pattern, Rc::clone(&env))?;
-            if Self::is_truthy(&cond) {
+            if cond.is_truthy() {
                 return Self::execute(&arm.body, Rc::clone(&env));
             }
         }
@@ -286,19 +287,6 @@ impl Interpreter {
         }
 
         Ok(RuntimeValue::List { elements: values })
-    }
-
-    /// Coerces a RuntimeValue to a bool.
-    fn is_truthy(value: &RuntimeValue) -> bool {
-        match value {
-            RuntimeValue::Number(n) => *n != 0.0,
-            RuntimeValue::String(msg) => !msg.is_empty(),
-            RuntimeValue::Boolean(cond) => *cond,
-            RuntimeValue::Function { .. } => true,
-            RuntimeValue::NativeFunction { .. } => true,
-            RuntimeValue::List { elements } => !elements.is_empty(),
-            RuntimeValue::Nil => false,
-        }
     }
 }
 

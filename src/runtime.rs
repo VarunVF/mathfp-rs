@@ -26,6 +26,21 @@ pub enum RuntimeValue {
     Nil,
 }
 
+impl RuntimeValue {
+    /// Converts a RuntimeValue to a bool.
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Self::Number(n) => *n != 0.0,
+            Self::String(msg) => !msg.is_empty(),
+            Self::Boolean(cond) => *cond,
+            Self::Function { .. } => true,
+            Self::NativeFunction { .. } => true,
+            Self::List { elements } => !elements.is_empty(),
+            Self::Nil => false,
+        }
+    }
+}
+
 impl PartialEq for RuntimeValue {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -64,24 +79,24 @@ impl PartialOrd for RuntimeValue {
 impl Display for RuntimeValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RuntimeValue::Number(n) => write!(f, "{n}"),
-            RuntimeValue::String(msg) => write!(f, "\"{msg}\""),
-            RuntimeValue::Boolean(cond) => {
+            Self::Number(n) => write!(f, "{n}"),
+            Self::String(msg) => write!(f, "\"{msg}\""),
+            Self::Boolean(cond) => {
                 if *cond {
                     write!(f, "true")
                 } else {
                     write!(f, "false")
                 }
             }
-            RuntimeValue::Function {
+            Self::Function {
                 arg_name,
                 body: _,
                 closure: _,
             } => write!(f, "<function in {arg_name}>"),
-            RuntimeValue::NativeFunction { name, function: _ } => {
+            Self::NativeFunction { name, function: _ } => {
                 write!(f, "<native function {name}>")
             }
-            RuntimeValue::List { elements } => {
+            Self::List { elements } => {
                 write!(f, "[")?;
                 for i in 0..elements.len() {
                     write!(f, "{}", elements[i])?;
@@ -91,7 +106,7 @@ impl Display for RuntimeValue {
                 }
                 write!(f, "]")
             }
-            RuntimeValue::Nil => write!(f, "nil"),
+            Self::Nil => write!(f, "nil"),
         }
     }
 }
@@ -128,6 +143,7 @@ impl Environment {
         env.bind_native_fn("cos", builtins::cos);
         env.bind_native_fn("sqrt", builtins::sqrt);
         env.bind_native_fn("clock", builtins::clock);
+        env.bind_native_fn("bool", builtins::bool);
         env.bind_native_fn("str", builtins::str);
         env.bind_native_fn("print", builtins::print);
         env.bind_native_fn("println", builtins::println);

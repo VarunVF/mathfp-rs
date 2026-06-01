@@ -39,6 +39,11 @@ pub fn clock(value: RuntimeValue) -> Result<RuntimeValue, String> {
     }
 }
 
+pub fn bool(value: RuntimeValue) -> Result<RuntimeValue, String> {
+    // Convert to a boolean runtime value
+    Ok(RuntimeValue::Boolean(value.is_truthy()))
+}
+
 pub fn str(value: RuntimeValue) -> Result<RuntimeValue, String> {
     // Convert to a string runtime value
     Ok(RuntimeValue::String(value.to_string()))
