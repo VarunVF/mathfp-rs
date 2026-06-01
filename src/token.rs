@@ -17,6 +17,8 @@ pub enum TokenType {
     RightParen,
     LeftBrace,
     RightBrace,
+    LeftSquareBracket,
+    RightSquareBracket,
     Comma,
 
     // One or two character tokens

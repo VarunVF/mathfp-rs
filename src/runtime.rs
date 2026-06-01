@@ -20,6 +20,9 @@ pub enum RuntimeValue {
         name: String,
         function: fn(RuntimeValue) -> Result<RuntimeValue, String>,
     },
+    List {
+        elements: Vec<RuntimeValue>,
+    },
     Nil,
 }
 
@@ -32,6 +35,7 @@ impl PartialEq for RuntimeValue {
             // Functions cannot be compared.
             (Self::Function { .. }, Self::Function { .. }) => false,
             (Self::NativeFunction { .. }, Self::NativeFunction { .. }) => false,
+            (Self::List { elements: a }, Self::List { elements: b }) => a == b,
             (Self::Nil, Self::Nil) => true,
             // Two different types are never equal.
             _ => false,
@@ -48,6 +52,7 @@ impl PartialOrd for RuntimeValue {
             // Functions cannot be compared.
             (Self::Function { .. }, Self::Function { .. }) => None,
             (Self::NativeFunction { .. }, Self::NativeFunction { .. }) => None,
+            (Self::List { .. }, Self::List { .. }) => None,
             // Allow nil checking.
             (Self::Nil, Self::Nil) => Some(std::cmp::Ordering::Equal),
             // Two different types cannot be compared.
@@ -75,6 +80,16 @@ impl Display for RuntimeValue {
             } => write!(f, "<function in {arg_name}>"),
             RuntimeValue::NativeFunction { name, function: _ } => {
                 write!(f, "<native function {name}>")
+            }
+            RuntimeValue::List { elements } => {
+                write!(f, "[")?;
+                for i in 0..elements.len() {
+                    write!(f, "{}", elements[i])?;
+                    if i < elements.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "]")
             }
             RuntimeValue::Nil => write!(f, "nil"),
         }

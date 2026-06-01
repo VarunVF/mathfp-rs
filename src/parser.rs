@@ -460,6 +460,7 @@ impl Parser {
                 Ok(Expr::Literal(LiteralValue::String(message.clone())))
             }
             Some(TokenType::LeftParen) => self.grouping(),
+            Some(TokenType::LeftSquareBracket) => self.list(),
             Some(kind) => Err(parser_fmt!(
                 self,
                 "Expected a primary expression, found {:?}",
@@ -484,6 +485,22 @@ impl Parser {
             )),
             None => Err(parser_fmt!(self, "Expected an expression after '('")),
         }
+    }
+
+    fn list(&mut self) -> Result<Expr, String> {
+        self.consume(TokenType::LeftSquareBracket)?; // opening [
+
+        let mut elements: Vec<Expr> = vec![];
+
+        while !self.matches(TokenType::RightSquareBracket) {
+            elements.push(self.expression()?);
+            if self.matches(TokenType::Comma) {
+                self.advance();
+            }
+        }
+
+        self.consume(TokenType::RightSquareBracket)?; // closing ]
+        Ok(Expr::List { elements })
     }
 }
 

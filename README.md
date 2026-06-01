@@ -63,6 +63,18 @@ Most variables can be modified using the `=` operator.
 x = 2 * y;
 ```
 
+### Types
+
+Currently supported types:
+- Numbers
+- Strings
+- Booleans
+- Functions
+    - User-defined functions
+    - Native functions (e.g. `sin`, `sqrt`)
+- Lists (using square brackets: `numbers := [4, 5, 6];`)
+- Nil (the type of the `nil` value)
+
 ### Conditionals
 
 Any expression can be used in the `then` and `else` branches of an `if`-expression.

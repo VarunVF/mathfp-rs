@@ -96,9 +96,11 @@ impl Scanner {
                 }
                 '(' => return self.advance_and_make_token(TokenType::LeftParen, "("),
                 ')' => return self.advance_and_make_token(TokenType::RightParen, ")"),
-                ',' => return self.advance_and_make_token(TokenType::Comma, ","),
                 '{' => return self.advance_and_make_token(TokenType::LeftBrace, "{"),
                 '}' => return self.advance_and_make_token(TokenType::RightBrace, "}"),
+                '[' => return self.advance_and_make_token(TokenType::LeftSquareBracket, "["),
+                ']' => return self.advance_and_make_token(TokenType::RightSquareBracket, "]"),
+                ',' => return self.advance_and_make_token(TokenType::Comma, ","),
                 '!' => {
                     if self.match_char('=') {
                         return self.advance_and_make_token(TokenType::BangEqual, "!=");

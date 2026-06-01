@@ -70,6 +70,7 @@ impl Interpreter {
             Expr::FunctionCall { func, arg } => {
                 Self::execute_function_call(func, arg, Rc::clone(&env))
             }
+            Expr::List { elements } => Self::execute_list(elements, Rc::clone(&env)),
             Expr::Empty => unreachable!("The program should never contain Empty expressions"),
         }
     }
@@ -118,11 +119,17 @@ impl Interpreter {
                 _ => unreachable!("There should be no other binary operators"),
             },
             (_, _) => match op.kind {
-                // Plus also defined for String.
+                // Plus also defined for String and List.
                 TokenType::Plus => match (left, right) {
                     (RuntimeValue::String(left), RuntimeValue::String(right)) => {
                         Ok(RuntimeValue::String(format!("{left}{right}")))
                     }
+                    (
+                        RuntimeValue::List { elements: left },
+                        RuntimeValue::List { elements: right },
+                    ) => Ok(RuntimeValue::List {
+                        elements: [left, right].concat(),
+                    }),
                     (left, right) => Self::make_unsupported_binary_expr_err(&left, &right, op),
                 },
                 // Minus, Star, Slash not defined for other types.
@@ -269,6 +276,18 @@ impl Interpreter {
         }
     }
 
+    fn execute_list(
+        elements: &[Expr],
+        env: Rc<RefCell<Environment>>,
+    ) -> Result<RuntimeValue, String> {
+        let mut values: Vec<RuntimeValue> = vec![];
+        for expr in elements {
+            values.push(Self::execute(expr, Rc::clone(&env))?);
+        }
+
+        Ok(RuntimeValue::List { elements: values })
+    }
+
     /// Coerces a RuntimeValue to a bool.
     fn is_truthy(value: &RuntimeValue) -> bool {
         match value {
@@ -277,6 +296,7 @@ impl Interpreter {
             RuntimeValue::Boolean(cond) => *cond,
             RuntimeValue::Function { .. } => true,
             RuntimeValue::NativeFunction { .. } => true,
+            RuntimeValue::List { elements } => !elements.is_empty(),
             RuntimeValue::Nil => false,
         }
     }

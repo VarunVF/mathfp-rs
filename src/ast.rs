@@ -50,6 +50,9 @@ pub enum Expr {
     Match {
         arms: Vec<MatchArm>,
     },
+    List {
+        elements: Vec<Expr>,
+    },
     Empty,
 }
 

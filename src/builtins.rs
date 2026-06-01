@@ -58,6 +58,7 @@ pub fn str(value: RuntimeValue) -> Result<RuntimeValue, String> {
         RuntimeValue::NativeFunction { name, function: _ } => {
             Ok(RuntimeValue::String(format!("<native function {name}>")))
         }
+        RuntimeValue::List { .. } => Ok(RuntimeValue::String(format!("{value}"))),
         RuntimeValue::Nil => Ok(RuntimeValue::String("nil".to_string())),
     }
 }
@@ -79,6 +80,7 @@ pub fn print(value: RuntimeValue) -> Result<RuntimeValue, String> {
             closure: _,
         } => print!("<function in {arg_name}>"),
         RuntimeValue::NativeFunction { name, function: _ } => print!("<native function {name}>"),
+        RuntimeValue::List { .. } => print!("{value}"),
         RuntimeValue::Nil => print!("nil"),
     }
 
