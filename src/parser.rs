@@ -85,16 +85,13 @@ impl Parser {
             } else {
                 Err(parser_fmt!(
                     self,
-                    "Expected token of type {:?}, found {:?}",
-                    expected_kind,
-                    found_kind
+                    "Expected token of type {expected_kind}, found {found_kind}",
                 ))
             }
         } else {
             Err(parser_fmt!(
                 self,
-                "Expected token of type {:?}, but no token was found",
-                expected_kind
+                "Expected token of type {expected_kind}, but no token was found",
             ))
         }
     }
@@ -147,8 +144,7 @@ impl Parser {
                 Some(TokenType::EndStmt | TokenType::Eof) => Ok(expr),
                 Some(kind) => Err(parser_fmt!(
                     self,
-                    "Expected ; or newline after expression, found {:?}",
-                    kind
+                    "Expected ; or newline after expression, found {kind}"
                 )),
                 None => Err(parser_fmt!(self, "Expected ; or newline after expression")),
             },
@@ -259,8 +255,7 @@ impl Parser {
             Some(kind) => {
                 return Err(parser_fmt!(
                     self,
-                    "Expected an assignment expression, found {:?}",
-                    kind
+                    "Expected an assignment expression, found {kind}",
                 ));
             }
             None => return Err(parser_fmt!(self, "Expected an expression")),
@@ -286,8 +281,7 @@ impl Parser {
             Some(kind) => {
                 return Err(parser_fmt!(
                     self,
-                    "Expected a binding expression, found {:?}",
-                    kind
+                    "Expected a binding expression, found {kind}"
                 ));
             }
             None => return Err(parser_fmt!(self, "Expected an expression")),
@@ -463,8 +457,7 @@ impl Parser {
             Some(TokenType::LeftSquareBracket) => self.list(),
             Some(kind) => Err(parser_fmt!(
                 self,
-                "Expected a primary expression, found {:?}",
-                kind
+                "Expected a primary expression, found {kind}"
             )),
             None => Err(parser_fmt!(self, "Expected an expression")),
         }
@@ -480,8 +473,7 @@ impl Parser {
             }
             Some(kind) => Err(parser_fmt!(
                 self,
-                "Expected ) after parenthesised expression, found {:?}",
-                kind
+                "Expected ) after parenthesised expression, found {kind}"
             )),
             None => Err(parser_fmt!(self, "Expected an expression after '('")),
         }
