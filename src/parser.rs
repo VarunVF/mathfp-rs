@@ -144,9 +144,9 @@ impl Parser {
                 Some(TokenType::EndStmt | TokenType::Eof) => Ok(expr),
                 Some(kind) => Err(parser_fmt!(
                     self,
-                    "Expected ; or newline after expression, found {kind}"
+                    "Expected ; after expression, found {kind}"
                 )),
-                None => Err(parser_fmt!(self, "Expected ; or newline after expression")),
+                None => Err(parser_fmt!(self, "Expected ; after expression")),
             },
         }
     }
@@ -627,7 +627,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Expected ; or newline after expression")]
+    #[should_panic(expected = "Expected ; after expression")]
     fn test_invalid_grouping_open() {
         // 9)*(9))
         Parser::new(vec![
