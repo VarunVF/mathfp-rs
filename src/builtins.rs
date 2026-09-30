@@ -50,11 +50,17 @@ pub fn str(value: RuntimeValue) -> Result<RuntimeValue, String> {
 }
 
 pub fn print(value: RuntimeValue) -> Result<RuntimeValue, String> {
-    print!("{value}");
+    match value {
+        RuntimeValue::String(contents) => print!("{contents}"),
+        _ => print!("{value}"),
+    }
     Ok(RuntimeValue::Nil)
 }
 
 pub fn println(value: RuntimeValue) -> Result<RuntimeValue, String> {
-    println!("{value}");
+    match value {
+        RuntimeValue::String(contents) => println!("{contents}"),
+        _ => println!("{value}"),
+    }
     Ok(RuntimeValue::Nil)
 }
