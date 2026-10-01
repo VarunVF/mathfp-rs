@@ -3,22 +3,18 @@ use std::io::{self, Write};
 
 use mathfp::{execute_env, interpreter, runtime};
 
-fn usage() {
-    println!("Usage: mathfp [file_name]");
-}
-
-fn run_file(file_name: &str) -> Result<(), String> {
+fn run_file(file_name: &str, args: &[String]) -> Result<(), String> {
     let contents = fs::read_to_string(file_name)
         .map_err(|e| format!("Could not read file {file_name}: {e}"))?;
 
-    let interpreter = interpreter::Interpreter::new();
+    let interpreter = interpreter::Interpreter::new(args);
     let _ = execute_env(&contents, &interpreter).map_err(|e| eprintln!("{e}"));
 
     Ok(())
 }
 
 fn run_repl() -> Result<(), String> {
-    let interpreter = interpreter::Interpreter::new();
+    let interpreter = interpreter::Interpreter::default();
 
     loop {
         print!(">>> ");
@@ -53,12 +49,10 @@ fn run_repl() -> Result<(), String> {
 
 fn main() -> Result<(), String> {
     let argv: Vec<String> = std::env::args().collect();
-    match argv.len() {
-        1 => run_repl(),
-        2 => run_file(&argv[1]),
-        _ => {
-            usage();
-            Err("Invalid number of arguments.".to_string())
-        }
+    match argv.as_slice() {
+        [] => panic!("Recieved no arguments."),
+        [_program_name] => run_repl(),
+        [_program_name, file_path] => run_file(file_path, &[]),
+        [_program_name, file_path, script_args @ ..] => run_file(file_path, script_args),
     }
 }

@@ -13,12 +13,12 @@ fn assert_bool(interpreter: &Interpreter, name: &str, cond: bool) {
 #[test]
 fn test_numeric_ops() {
     let input = "42 + 5 - 3 / 2 + 1 * 5";
-    assert_eq!(execute_or_panic(input), RuntimeValue::Number(50.5));
+    assert_eq!(execute_or_panic(input, &[]), RuntimeValue::Number(50.5));
 }
 
 #[test]
 fn test_numeric_comparison() {
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
     let input = "
         nums_lt := 2 < 3;
         nums_le := 2 <= 2;
@@ -41,7 +41,7 @@ fn test_numeric_comparison() {
 fn test_string_op() {
     let input = "\"hello\" + \" world\"";
     assert_eq!(
-        execute_or_panic(input),
+        execute_or_panic(input, &[]),
         RuntimeValue::String("hello world".into())
     );
 }
@@ -49,22 +49,22 @@ fn test_string_op() {
 #[test]
 fn test_different_type_compare() {
     let input = "5 == 5";
-    assert_eq!(execute_or_panic(input), RuntimeValue::Boolean(true));
+    assert_eq!(execute_or_panic(input, &[]), RuntimeValue::Boolean(true));
 
     let input = "sin >= \"sin\"";
-    assert_eq!(execute_or_panic(input), RuntimeValue::Boolean(false));
+    assert_eq!(execute_or_panic(input, &[]), RuntimeValue::Boolean(false));
 }
 
 #[test]
 #[should_panic(expected = "Unsupported operands for '*'")]
 fn test_invalid_type_op() {
     let input = "\"hello\" * 67";
-    execute_or_panic(input);
+    execute_or_panic(input, &[]);
 }
 
 #[test]
 fn test_nil_ops() {
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
     let input = "
         ints_eq := 5 == 5;          // true
         nums_eq := 5 == 5.0;        // true (using f64 internally)
@@ -81,7 +81,7 @@ fn test_nil_ops() {
 
 #[test]
 fn test_off_by_one() {
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
     let input = "
         test1 := 10 > 5;            // true
         test2 := 10 >= 10;          // true

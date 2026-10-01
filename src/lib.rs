@@ -6,12 +6,12 @@ pub mod runtime;
 pub mod scanner;
 pub mod token;
 
-pub fn execute(input: &str) -> Result<runtime::RuntimeValue, String> {
-    execute_env(input, &interpreter::Interpreter::new())
+pub fn execute(input: &str, args: &[String]) -> Result<runtime::RuntimeValue, String> {
+    execute_env(input, &interpreter::Interpreter::new(args))
 }
 
-pub fn execute_or_panic(input: &str) -> runtime::RuntimeValue {
-    execute_env_or_panic(input, &interpreter::Interpreter::new())
+pub fn execute_or_panic(input: &str, args: &[String]) -> runtime::RuntimeValue {
+    execute_env_or_panic(input, &interpreter::Interpreter::new(args))
 }
 
 pub fn execute_env(

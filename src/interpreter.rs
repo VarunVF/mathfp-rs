@@ -12,15 +12,15 @@ pub struct Interpreter {
 
 impl Default for Interpreter {
     fn default() -> Self {
-        Self::new()
+        Self::new(&[])
     }
 }
 
 impl Interpreter {
-    pub fn new() -> Self {
+    pub fn new(args: &[String]) -> Self {
         let stdlib_string = include_str!("stdlib.mfp");
         let interpreter = Self {
-            globals: Rc::new(RefCell::new(Environment::new())),
+            globals: Rc::new(RefCell::new(Environment::new(args))),
         };
         execute_env_or_panic(stdlib_string, &interpreter);
         interpreter
@@ -334,7 +334,7 @@ mod tests {
 
     #[test]
     fn test_literals() {
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::default();
         let num_res = interpreter
             .interpret(&Expr::Literal(LiteralValue::Number(42.0)))
             .unwrap();
@@ -348,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_binary_arithmetic() {
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::default();
 
         // 10 + 5
         let expr = Expr::Binary {
@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_bindings_and_variables() {
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::default();
 
         // x := 100
         let bind_expr = Expr::Binding {
@@ -384,7 +384,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "Cannot redeclare variable")]
     fn test_constant_protection() {
-        let interpreter = Interpreter::new(); // Adds "true" as a constant
+        let interpreter = Interpreter::default(); // Adds "true" as a constant
 
         // true := 5 (should fail)
         let expr = Expr::Binding {
@@ -397,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_unresolved_variable() {
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::default();
 
         let result = interpreter.interpret(&Expr::Variable("x".into()));
         assert_eq!(result.unwrap_err(), "Name 'x' is not defined");
@@ -405,7 +405,7 @@ mod tests {
 
     #[test]
     fn test_grouping() {
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::default();
 
         // (10)
         let expr = Expr::Grouping(Box::new(Expr::Literal(LiteralValue::Number(10.0))));
@@ -417,7 +417,7 @@ mod tests {
 
     #[test]
     fn test_if_basic_branching() {
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::default();
 
         // if true then 10 else 20
         let expr = Expr::If {
@@ -444,7 +444,7 @@ mod tests {
 
     #[test]
     fn test_program_sequence() {
-        let interpreter = Interpreter::new();
+        let interpreter = Interpreter::default();
 
         // a := 1; a + 2;
         let prog = Expr::Program {

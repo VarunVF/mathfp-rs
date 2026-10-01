@@ -4,7 +4,7 @@ use mathfp::runtime::RuntimeValue;
 
 // Helper for executing a string where success is expected
 fn run_string_helper(input: &str) -> RuntimeValue {
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
     execute_env_or_panic(input, &interpreter)
 }
 

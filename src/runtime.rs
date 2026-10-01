@@ -125,33 +125,42 @@ pub struct Environment {
 
 impl Default for Environment {
     fn default() -> Self {
-        Self::new()
+        Self::new(&[])
     }
 }
 
 impl Environment {
-    pub fn new() -> Self {
+    pub fn new(args: &[String]) -> Self {
         let mut env = Environment {
             bindings: HashMap::new(),
             parent: None,
         };
+
+        let elements = args
+            .iter()
+            .map(|x| RuntimeValue::String(x.clone()))
+            .collect();
+        env.bind_const(String::from("__args"), RuntimeValue::List { elements });
+
         env.bind_const(String::from("nil"), RuntimeValue::Nil);
         env.bind_const(String::from("true"), RuntimeValue::Boolean(true));
         env.bind_const(String::from("false"), RuntimeValue::Boolean(false));
 
-        env.bind_native_fn("sin", builtins::sin);
-        env.bind_native_fn("cos", builtins::cos);
-        env.bind_native_fn("sqrt", builtins::sqrt);
-        env.bind_native_fn("clock", builtins::clock);
-        env.bind_native_fn("bool", builtins::bool);
-        env.bind_native_fn("str", builtins::str);
-        env.bind_native_fn("print", builtins::print);
-        env.bind_native_fn("println", builtins::println);
+        env.bind_native_fn("__sin", builtins::__sin);
+        env.bind_native_fn("__cos", builtins::__cos);
+        env.bind_native_fn("__sqrt", builtins::__sqrt);
+        env.bind_native_fn("__clock", builtins::__clock);
+        env.bind_native_fn("__bool", builtins::__bool);
+        env.bind_native_fn("__str", builtins::__str);
+        env.bind_native_fn("__print", builtins::__print);
+        env.bind_native_fn("__println", builtins::__println);
 
         env.bind_native_fn("__map", builtins::__map);
         env.bind_native_fn("__filter", builtins::__filter);
         env.bind_native_fn("__foldl", builtins::__foldl);
         env.bind_native_fn("__foldr", builtins::__foldr);
+
+        env.bind_native_fn("__len", builtins::__len);
 
         env
     }
@@ -241,14 +250,14 @@ mod tests {
 
     #[test]
     fn test_initial_globals() {
-        let env = Environment::new();
+        let env = Environment::default();
         assert_eq!(env.resolve("true"), Some(RuntimeValue::Boolean(true)));
         assert_eq!(env.resolve("nil"), Some(RuntimeValue::Nil));
     }
 
     #[test]
     fn test_binding_and_resolving() {
-        let mut env = Environment::new();
+        let mut env = Environment::default();
         let _ = env.bind("x".into(), RuntimeValue::Number(10.0));
 
         assert_eq!(env.resolve("x"), Some(RuntimeValue::Number(10.0)));
@@ -256,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_prevent_overwriting_constants() {
-        let mut env = Environment::new();
+        let mut env = Environment::default();
         // Attempt to redefine a global constant
         let result = env.bind("true".into(), RuntimeValue::Boolean(false));
 
@@ -267,7 +276,7 @@ mod tests {
 
     #[test]
     fn test_allow_overwriting_variables() {
-        let mut mut_env = Environment::new();
+        let mut mut_env = Environment::default();
         let _ = mut_env.bind("x".into(), RuntimeValue::Number(1.0));
         let _ = mut_env.assign("x".into(), RuntimeValue::Number(2.0)); // Should work
 
@@ -276,7 +285,7 @@ mod tests {
 
     #[test]
     fn test_resolve_parent_env() {
-        let env = Rc::new(RefCell::new(Environment::new()));
+        let env = Rc::new(RefCell::new(Environment::default()));
         env.borrow_mut()
             .bind("x".into(), RuntimeValue::Number(1.0))
             .expect("Binding should not fail");
@@ -290,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_shadowing_env() {
-        let env = Rc::new(RefCell::new(Environment::new()));
+        let env = Rc::new(RefCell::new(Environment::default()));
         env.borrow_mut()
             .bind("x".into(), RuntimeValue::Number(1.0))
             .expect("Binding should not fail");
@@ -328,7 +337,7 @@ mod tests {
             RuntimeValue::Function {
                 arg_name: "x".into(),
                 body: Expr::Block { statements: vec![] },
-                closure: Rc::new(RefCell::new(Environment::new())),
+                closure: Rc::new(RefCell::new(Environment::default())),
             }
         }
 

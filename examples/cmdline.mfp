@@ -1,0 +1,5 @@
+argv := args(nil);
+argc := len(argv);
+
+println(argv);
+print("Read "); print(argc); println(" command-line arguments");

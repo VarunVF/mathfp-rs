@@ -6,21 +6,21 @@ use mathfp::{execute, execute_env_or_panic, execute_or_panic};
 fn test_complex_conditional_logic() {
     // dangling else
     let input = "if true then if false then 1 else 2";
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(2.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(2.0)));
 
     // dangling else
     let input = "if false then if false then 1 else 2";
-    assert_eq!(execute(input), Ok(RuntimeValue::Nil));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Nil));
 
     // expression nesting
     let input = "x := 10; 5 + (if x then 10 else 0)";
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(15.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(15.0)));
 }
 
 #[test]
 fn test_lambda() {
     let input = "f := x |-> x + 1; f(10)";
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(11.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(11.0)));
 }
 
 #[test]
@@ -33,7 +33,7 @@ fn test_outer_scope_binding_change() {
     ";
     // If lexical scoping works, f(5) uses x=20 (the latest global).
     // In most functional languages, it should be 25.0.
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(25.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(25.0)));
 }
 
 #[test]
@@ -45,12 +45,12 @@ fn test_closures_and_higher_order() {
         add5(2) + add10(2)
     ";
     // (5 + 2) + (10 + 2) = 7 + 12 = 19
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(19.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(19.0)));
 }
 
 #[test]
 fn test_nested_shadowing() {
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
     let input = "
         val := 100;
         f := x |-> val := x + x;
@@ -75,7 +75,7 @@ fn test_function_composition() {
         double := x |-> x + x;
         square(double(5))
     ";
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(100.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(100.0)));
 }
 
 #[test]
@@ -84,7 +84,7 @@ fn test_if_returning_function() {
         f := if true then (x |-> x + 1) else (x |-> x - 1);
         f(10)
     ";
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(11.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(11.0)));
 }
 
 #[test]
@@ -93,7 +93,7 @@ fn test_recursion() {
         fact := n |-> if n then n*fact(n-1) else 1;
         fact(5)
     ";
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(120.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(120.0)));
 }
 
 #[test]
@@ -104,13 +104,13 @@ fn test_mutual_recursion() {
         is_even(4)
     ";
 
-    assert_eq!(execute(input), Ok(RuntimeValue::Boolean(true)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Boolean(true)));
 }
 
 #[test]
 fn test_closure_equality() {
     // Closures should not be equal
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
 
     execute_env_or_panic("make_adder := x |-> (y |-> x + y)", &interpreter);
 
@@ -138,7 +138,7 @@ fn test_lexical_scope_isolation() {
     ";
 
     // If lexical, it must be 15.0 (10 + 5)
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(15.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(15.0)));
 }
 
 #[test]
@@ -149,7 +149,7 @@ fn test_variable_scope() {
         x
     ";
 
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(7.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(7.0)));
 }
 
 #[test]
@@ -169,7 +169,7 @@ fn test_closure_mutation_counter() {
     ";
 
     // The final call c(5) should return 1 + 1 + 5 = 7
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(7.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(7.0)));
 }
 
 #[test]
@@ -181,7 +181,7 @@ fn test_comments() {
         x + y // Returns 15
     ";
 
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(15.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(15.0)));
 }
 
 #[test]
@@ -196,7 +196,7 @@ fn test_comments_inside_functions() {
         f(4)
     ";
 
-    assert_eq!(execute(input), Ok(RuntimeValue::Number(16.0)));
+    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(16.0)));
 }
 
 #[test]
@@ -204,14 +204,17 @@ fn test_comments_inside_functions() {
 fn test_function_body_empty_error() {
     let input = "f := _ |-> ;";
 
-    execute_or_panic(input);
+    execute_or_panic(input, &[]);
 }
 
 #[test]
 fn test_function_body_empty_ok() {
     let input = "f := _ |-> {}";
 
-    assert!(matches!(execute(input), Ok(RuntimeValue::Function { .. })));
+    assert!(matches!(
+        execute(input, &[]),
+        Ok(RuntimeValue::Function { .. })
+    ));
 }
 
 #[test]
@@ -227,19 +230,19 @@ fn test_undefined_name_in_function() {
 
     // Evaluation should stop as soon as `no_such_function` was found to be unresolved.
     // It should never go on to the next statement.
-    execute_or_panic(input);
+    execute_or_panic(input, &[]);
 }
 
 #[test]
 #[should_panic(expected = "Expected an expression")]
 fn test_incomplete_function_def() {
     let input = "f := x |-> {";
-    execute_or_panic(input);
+    execute_or_panic(input, &[]);
 }
 
 #[test]
 #[should_panic]
 fn test_incomplete_grouping() {
     let input = "f := x + (1";
-    execute_or_panic(input);
+    execute_or_panic(input, &[]);
 }

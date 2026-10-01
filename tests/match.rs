@@ -5,7 +5,7 @@ use mathfp::{execute_env, execute_env_or_panic};
 #[test]
 #[should_panic(expected = "Expected at least one match arm")]
 fn test_empty_match() {
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
     let input = "
         divide := a |-> b |-> match {};
         result := divide(2)(1);
@@ -15,7 +15,7 @@ fn test_empty_match() {
 
 #[test]
 fn test_match_exhaustive() {
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
     let input = "
         divide := a |-> b |-> match {
             b == 0 => nil,
@@ -35,7 +35,7 @@ fn test_match_exhaustive() {
 
 #[test]
 fn test_match_non_exhaustive() {
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
     let input = "
         divide := a |-> b |-> match {
             b != 0 => a / b,
@@ -49,7 +49,7 @@ fn test_match_non_exhaustive() {
 
 #[test]
 fn test_match_early_return() {
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
     let input = "
         x := 10;
         result := match {
@@ -66,7 +66,7 @@ fn test_match_early_return() {
 
 #[test]
 fn test_nested_match() {
-    let interpreter = Interpreter::new();
+    let interpreter = Interpreter::default();
     let input = "
         x := 1;
         y := 2;

@@ -9,21 +9,21 @@ use crate::{
     runtime::{Environment, RuntimeValue},
 };
 
-pub fn sin(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+pub fn __sin(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     match value {
         RuntimeValue::Number(n) => Ok(RuntimeValue::Number(n.sin())),
         _ => Err("sin() expects a number".into()),
     }
 }
 
-pub fn cos(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+pub fn __cos(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     match value {
         RuntimeValue::Number(n) => Ok(RuntimeValue::Number(n.cos())),
         _ => Err("cos() expects a number".into()),
     }
 }
 
-pub fn sqrt(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+pub fn __sqrt(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     match value {
         RuntimeValue::Number(n) => Ok(RuntimeValue::Number(n.sqrt())),
         _ => Err("sqrt() expects a number".into()),
@@ -31,7 +31,10 @@ pub fn sqrt(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Runti
 }
 
 // This function takes no argument (Nil).
-pub fn clock(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+pub fn __clock(
+    value: RuntimeValue,
+    _env: Rc<RefCell<Environment>>,
+) -> Result<RuntimeValue, String> {
     match value {
         RuntimeValue::Nil => {
             let start = SystemTime::now();
@@ -46,17 +49,20 @@ pub fn clock(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Runt
     }
 }
 
-pub fn bool(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+pub fn __bool(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     // Convert to a boolean runtime value
     Ok(RuntimeValue::Boolean(value.is_truthy()))
 }
 
-pub fn str(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+pub fn __str(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     // Convert to a string runtime value
     Ok(RuntimeValue::String(value.to_string()))
 }
 
-pub fn print(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+pub fn __print(
+    value: RuntimeValue,
+    _env: Rc<RefCell<Environment>>,
+) -> Result<RuntimeValue, String> {
     match value {
         RuntimeValue::String(contents) => print!("{contents}"),
         _ => print!("{value}"),
@@ -64,7 +70,7 @@ pub fn print(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Runt
     Ok(RuntimeValue::Nil)
 }
 
-pub fn println(
+pub fn __println(
     value: RuntimeValue,
     _env: Rc<RefCell<Environment>>,
 ) -> Result<RuntimeValue, String> {
@@ -162,5 +168,12 @@ pub fn __foldl(value: RuntimeValue, env: Rc<RefCell<Environment>>) -> Result<Run
         Ok(reduced)
     } else {
         Err("Invalid argument for reduce()".to_string())
+    }
+}
+
+pub fn __len(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+    match value {
+        RuntimeValue::List { elements } => Ok(RuntimeValue::Number(elements.len() as f64)),
+        _ => Err("len() expects a list".into()),
     }
 }
