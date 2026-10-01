@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::ast::{Expr, LiteralValue, MatchArm};
+use crate::execute_env_or_panic;
 use crate::runtime::{Environment, RuntimeValue};
 use crate::token::{Token, TokenType};
 
@@ -17,9 +18,12 @@ impl Default for Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
-        Self {
+        let stdlib_string = include_str!("stdlib.mfp");
+        let interpreter = Self {
             globals: Rc::new(RefCell::new(Environment::new())),
-        }
+        };
+        execute_env_or_panic(stdlib_string, &interpreter);
+        interpreter
     }
 
     pub fn interpret(&self, expr: &Expr) -> Result<RuntimeValue, String> {
@@ -271,7 +275,30 @@ impl Interpreter {
             }
             RuntimeValue::NativeFunction { name: _, function } => {
                 let arg_value = Self::execute(arg, Rc::clone(&env))?;
-                Ok(function(arg_value)?)
+                Ok(function(arg_value, Rc::clone(&env))?)
+            }
+            _ => Err("Only functions are callable".to_string()),
+        }
+    }
+
+    pub(crate) fn interpret_function(
+        function: RuntimeValue,
+        argument: RuntimeValue,
+        env: Rc<RefCell<Environment>>,
+    ) -> Result<RuntimeValue, String> {
+        match function {
+            RuntimeValue::Function {
+                arg_name,
+                body,
+                closure,
+            } => {
+                // The parent of the new scope is the closure
+                let local_env = Rc::new(RefCell::new(Environment::with_parent(closure)));
+                local_env.borrow_mut().bind(arg_name, argument)?;
+                Self::execute(&body, local_env)
+            }
+            RuntimeValue::NativeFunction { name: _, function } => {
+                Ok(function(argument, Rc::clone(&env))?)
             }
             _ => Err("Only functions are callable".to_string()),
         }

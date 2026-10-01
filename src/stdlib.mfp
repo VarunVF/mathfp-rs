@@ -1,0 +1,5 @@
+map    := f |-> list |-> __map([f, list]);
+filter := f |-> list |-> __filter([f, list]);
+foldl  := f |-> init |-> list |-> __foldl([f, init, list]);
+foldr  := f |-> init |-> list |-> __foldr([f, init, list]);
+reduce := foldl;

@@ -18,7 +18,7 @@ pub enum RuntimeValue {
     },
     NativeFunction {
         name: String,
-        function: fn(RuntimeValue) -> Result<RuntimeValue, String>,
+        function: fn(RuntimeValue, Rc<RefCell<Environment>>) -> Result<RuntimeValue, String>,
     },
     List {
         elements: Vec<RuntimeValue>,
@@ -148,13 +148,18 @@ impl Environment {
         env.bind_native_fn("print", builtins::print);
         env.bind_native_fn("println", builtins::println);
 
+        env.bind_native_fn("__map", builtins::__map);
+        env.bind_native_fn("__filter", builtins::__filter);
+        env.bind_native_fn("__foldl", builtins::__foldl);
+        env.bind_native_fn("__foldr", builtins::__foldr);
+
         env
     }
 
     fn bind_native_fn(
         &mut self,
         name: &str,
-        function: fn(RuntimeValue) -> Result<RuntimeValue, String>,
+        function: fn(RuntimeValue, Rc<RefCell<Environment>>) -> Result<RuntimeValue, String>,
     ) {
         let value = RuntimeValue::NativeFunction {
             name: name.into(),
@@ -307,7 +312,7 @@ mod tests {
         fn make_native_fn() -> RuntimeValue {
             RuntimeValue::NativeFunction {
                 name: "sqrt".into(),
-                function: |val| Ok(val),
+                function: |val, _| Ok(val),
             }
         }
 

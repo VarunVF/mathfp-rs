@@ -32,7 +32,11 @@ fn run_repl() -> Result<(), String> {
             .map_err(|e| format!("Error reading input: {e}"))?;
 
         match bytes_read {
-            0 => return Ok(()), // EOF
+            0 => {
+                // EOF
+                println!();
+                return Ok(());
+            }
             _ => {
                 match execute_env(&input, &interpreter) {
                     Ok(value) => {
