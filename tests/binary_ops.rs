@@ -56,7 +56,7 @@ fn test_different_type_compare() {
 }
 
 #[test]
-#[should_panic(expected = "Unsupported operands for '*'")]
+#[should_panic(expected = "Unsupported types for '*'")]
 fn test_invalid_type_op() {
     let input = "\"hello\" * 67";
     execute_or_panic(input, &[]);

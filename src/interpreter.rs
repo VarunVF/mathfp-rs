@@ -40,8 +40,10 @@ impl Interpreter {
         op: &Token,
     ) -> Result<RuntimeValue, String> {
         Err(format!(
-            "Unsupported operands for '{}': {left}, {right}",
-            op.lexeme
+            "Unsupported types for '{}': {}, {}",
+            op.lexeme,
+            left.type_str(),
+            right.type_str()
         ))
     }
 
@@ -159,7 +161,10 @@ impl Interpreter {
         let r = Self::execute(right, env)?;
         match (&op.kind, r.clone()) {
             (TokenType::Minus, RuntimeValue::Number(n)) => Ok(RuntimeValue::Number(-n)),
-            (TokenType::Minus, _) => Err("Operand for unary '-' must be a number".to_string()),
+            (TokenType::Minus, other) => Err(format!(
+                "Operand for unary '-' must be a number, not {}",
+                other.type_str()
+            )),
             (TokenType::Bang, RuntimeValue::Boolean(cond)) => Ok(RuntimeValue::Boolean(!cond)),
             (TokenType::Bang, _) => Ok(RuntimeValue::Boolean(!r.is_truthy())),
             _ => unreachable!("There should only be '-' or '!' unary operators"),
@@ -277,7 +282,10 @@ impl Interpreter {
                 let arg_value = Self::execute(arg, Rc::clone(&env))?;
                 Ok(function(arg_value, Rc::clone(&env))?)
             }
-            _ => Err("Only functions are callable".to_string()),
+            _ => Err(format!(
+                "Only functions are callable, not {}",
+                function.type_str()
+            )),
         }
     }
 
@@ -300,7 +308,10 @@ impl Interpreter {
             RuntimeValue::NativeFunction { name: _, function } => {
                 Ok(function(argument, Rc::clone(&env))?)
             }
-            _ => Err("Only functions are callable".to_string()),
+            _ => Err(format!(
+                "Only functions are callable, not {}",
+                function.type_str()
+            )),
         }
     }
 

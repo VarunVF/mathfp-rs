@@ -39,6 +39,51 @@ impl RuntimeValue {
             Self::Nil => false,
         }
     }
+
+    pub fn type_str(&self) -> &str {
+        match self {
+            Self::Number(_) => "number",
+            Self::String(_) => "str",
+            Self::Boolean(_) => "bool",
+            Self::Function { .. } => "function",
+            Self::NativeFunction { .. } => "function",
+            Self::List { .. } => "list",
+            Self::Nil => "nil",
+        }
+    }
+
+    pub fn get(&self, i: usize) -> Option<RuntimeValue> {
+        match self {
+            Self::List { elements } => elements.get(i).cloned(),
+            Self::String(elements) => elements
+                .chars()
+                .nth(i)
+                .map(|c| RuntimeValue::String(c.to_string())),
+            _ => None,
+        }
+    }
+
+    pub fn len(&self) -> Result<usize, String> {
+        match self {
+            Self::List { elements } => Ok(elements.len()),
+            Self::String(elements) => Ok(elements.len()),
+            _ => Err(format!(
+                "Length is only defined for list or string, not {}",
+                self.type_str()
+            )),
+        }
+    }
+
+    pub fn is_empty(&self) -> Result<bool, String> {
+        match self {
+            Self::List { elements } => Ok(elements.is_empty()),
+            Self::String(elements) => Ok(elements.is_empty()),
+            _ => Err(format!(
+                "Length is only defined for list or string, not {}",
+                self.type_str()
+            )),
+        }
+    }
 }
 
 impl PartialEq for RuntimeValue {
@@ -140,20 +185,24 @@ impl Environment {
             .iter()
             .map(|x| RuntimeValue::String(x.clone()))
             .collect();
-        env.bind_const(String::from("__args"), RuntimeValue::List { elements });
 
-        env.bind_const(String::from("nil"), RuntimeValue::Nil);
-        env.bind_const(String::from("true"), RuntimeValue::Boolean(true));
-        env.bind_const(String::from("false"), RuntimeValue::Boolean(false));
+        env.bind_const("nil", RuntimeValue::Nil);
+        env.bind_const("true", RuntimeValue::Boolean(true));
+        env.bind_const("false", RuntimeValue::Boolean(false));
+
+        env.bind_const("__args", RuntimeValue::List { elements });
+        env.bind_native_fn("__print", builtins::__print);
+        env.bind_native_fn("__println", builtins::__println);
 
         env.bind_native_fn("__sin", builtins::__sin);
         env.bind_native_fn("__cos", builtins::__cos);
         env.bind_native_fn("__sqrt", builtins::__sqrt);
+
         env.bind_native_fn("__clock", builtins::__clock);
+
+        env.bind_native_fn("__type", builtins::__type);
         env.bind_native_fn("__bool", builtins::__bool);
         env.bind_native_fn("__str", builtins::__str);
-        env.bind_native_fn("__print", builtins::__print);
-        env.bind_native_fn("__println", builtins::__println);
 
         env.bind_native_fn("__map", builtins::__map);
         env.bind_native_fn("__filter", builtins::__filter);
@@ -161,6 +210,7 @@ impl Environment {
         env.bind_native_fn("__foldr", builtins::__foldr);
 
         env.bind_native_fn("__len", builtins::__len);
+        env.bind_native_fn("__get", builtins::__get);
 
         env
     }
@@ -174,7 +224,7 @@ impl Environment {
             name: name.into(),
             function,
         };
-        self.bind_const(name.into(), value);
+        self.bind_const(name, value);
     }
 
     pub fn with_parent(parent: Rc<RefCell<Environment>>) -> Environment {
@@ -184,9 +234,9 @@ impl Environment {
         }
     }
 
-    fn bind_const(&mut self, name: String, value: RuntimeValue) {
+    fn bind_const(&mut self, name: &str, value: RuntimeValue) {
         self.bindings.insert(
-            name,
+            name.into(),
             Binding {
                 value,
                 is_constant: true,
