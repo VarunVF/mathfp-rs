@@ -7,6 +7,6 @@ make_counter := _ |-> {
     count
 };
 
-counter := make_counter(nil);
-counter(nil);   // 1
-counter(nil);   // 2
+counter := make_counter();
+counter();   // 1
+counter();   // 2

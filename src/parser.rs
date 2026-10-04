@@ -424,16 +424,28 @@ impl Parser {
     fn function_call(&mut self) -> Result<Expr, String> {
         let mut left = self.primary()?;
 
+        // Read bracketed args
         while self.matches(TokenType::LeftParen) {
             self.advance();
 
+            // Allow empty brackets to pass nil
+            if self.matches(TokenType::RightParen) {
+                self.advance();
+                left = Expr::FunctionCall {
+                    func: Box::new(left),
+                    arg: Box::new(Expr::Literal(LiteralValue::Nil)),
+                };
+                continue;
+            }
+
+            // Read comma-separated args
             loop {
                 let arg = Box::new(self.expression()?);
                 left = Expr::FunctionCall {
                     func: Box::new(left),
                     arg,
                 };
-                
+
                 if self.matches(TokenType::Comma) {
                     self.advance();
                 } else {

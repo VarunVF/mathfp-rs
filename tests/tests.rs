@@ -265,3 +265,15 @@ fn test_invalid_comma_arguments() {
     ";
     execute_or_panic(input, &[]);
 }
+
+#[test]
+fn test_nullary_function() {
+    let input = "
+        f := _ |-> \"hello\";
+        f()
+    ";
+    assert_eq!(
+        execute_or_panic(input, &[]),
+        RuntimeValue::String("hello".to_string())
+    )
+}

@@ -50,7 +50,7 @@ fn run_repl() -> Result<(), String> {
 fn main() -> Result<(), String> {
     let argv: Vec<String> = std::env::args().collect();
     match argv.as_slice() {
-        [] => panic!("Recieved no arguments."),
+        [] => Err("Recieved no arguments.".to_string()),
         [_program_name] => run_repl(),
         [_program_name, file_path] => run_file(file_path, &[]),
         [_program_name, file_path, script_args @ ..] => run_file(file_path, script_args),

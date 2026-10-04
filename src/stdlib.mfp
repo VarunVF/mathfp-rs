@@ -9,11 +9,11 @@ cos  := x |-> __cos(x);
 sqrt := x |-> __sqrt(x);
 
 // Timing
-clock := _ |-> __clock(_);
+clock := __clock();
 time  := f |-> x |-> {
-    t1 := __clock(nil);
+    t1 := __clock();
     f(x);
-    t2 := __clock(nil);
+    t2 := __clock();
     t2 - t1
 };
 
