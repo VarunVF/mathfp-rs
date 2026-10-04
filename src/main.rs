@@ -1,20 +1,20 @@
-use std::fs;
 use std::io::{self, Write};
+use std::{env::args, fs};
 
-use mathfp::{execute_env, interpreter, runtime};
+use mathfp::{execute_env, interpreter::Interpreter, runtime::RuntimeValue};
 
 fn run_file(file_name: &str, args: &[String]) -> Result<(), String> {
     let contents = fs::read_to_string(file_name)
         .map_err(|e| format!("Could not read file {file_name}: {e}"))?;
 
-    let interpreter = interpreter::Interpreter::new(args);
+    let interpreter = Interpreter::new(args);
     let _ = execute_env(&contents, &interpreter).map_err(|e| eprintln!("{e}"));
 
     Ok(())
 }
 
 fn run_repl() -> Result<(), String> {
-    let interpreter = interpreter::Interpreter::default();
+    let interpreter = Interpreter::default();
 
     loop {
         print!(">>> ");
@@ -36,7 +36,7 @@ fn run_repl() -> Result<(), String> {
             _ => {
                 match execute_env(&input, &interpreter) {
                     Ok(value) => {
-                        if value != runtime::RuntimeValue::Nil {
+                        if value != RuntimeValue::Nil {
                             println!("{value}")
                         }
                     }
@@ -48,11 +48,10 @@ fn run_repl() -> Result<(), String> {
 }
 
 fn main() -> Result<(), String> {
-    let argv: Vec<String> = std::env::args().collect();
+    let argv: Vec<String> = args().collect();
     match argv.as_slice() {
-        [] => Err("Recieved no arguments.".to_string()),
-        [_program_name] => run_repl(),
-        [_program_name, file_path] => run_file(file_path, &[]),
-        [_program_name, file_path, script_args @ ..] => run_file(file_path, script_args),
+        [] | [_] => run_repl(),
+        // [_, file_path] => run_file(file_path, &[]),
+        [_, file_path, script_args @ ..] => run_file(file_path, script_args),
     }
 }
