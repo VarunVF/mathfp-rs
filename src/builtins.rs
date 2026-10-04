@@ -92,7 +92,7 @@ pub fn __map(value: RuntimeValue, env: Rc<RefCell<Environment>>) -> Result<Runti
             elements: original_items,
         }) = map_args.get(1)
     {
-        let mut mapped = Vec::new();
+        let mut mapped = Vec::with_capacity(original_items.len());
         for item in original_items {
             let new_value =
                 Interpreter::interpret_function(map_args[0].clone(), item.clone(), Rc::clone(&env));
@@ -114,7 +114,7 @@ pub fn __filter(
             elements: original_items,
         }) = map_args.get(1)
     {
-        let mut filtered = Vec::new();
+        let mut filtered = Vec::with_capacity(original_items.len());
         for item in original_items {
             let truth_value = Interpreter::interpret_function(
                 map_args[0].clone(),
