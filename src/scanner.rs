@@ -255,7 +255,7 @@ impl Scanner {
             Some(slice) => slice,
             None => {
                 self.advance();
-                return self.make_error("Expected a |-> (MapsTo) symbol, reached EOF");
+                return self.make_error("Expected a := (Binding) symbol, reached EOF");
             }
         };
         match lexeme {
