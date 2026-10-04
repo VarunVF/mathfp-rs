@@ -101,16 +101,18 @@ x := match {
 
 ### Functions
 
-Functions use the `|->` (maps-to) operator:
+Functions are single-argument lambdas defined using the `|->` (maps-to) operator:
 
 ```mathfp
 f := x |-> x * x;
-f(2)
+f(2)  // 4
 ```
 
-Functions can have a more complex body with multiple statements.
+Functions can contain multiple statements wrapped in braces `{...}`; the value of the last expression is implicitly returned. Variables declared inside a function are locally scoped.
 
-The last expression is implicitly returned. Bindings created inside a function are locally scoped and do not affect their outer scope.
+#### Currying & Multi-Argument Functions
+
+All functions take exactly one argument. Multi-argument functions are defined by 'chaining' single-argument lambdas (currying). For example:
 
 ```mathfp
 hypotenuse := a |-> b |-> {
@@ -118,12 +120,22 @@ hypotenuse := a |-> b |-> {
     b2 := b * b;
     sqrt(a2 + b2)
 };
-hypotenuse(3)(4)
+hypotenuse(3)(4)  // 5
+```
+
+For convenience, you may also pass comma-separated arguments, which translate directly into curried applications at parse time: `hypotenuse(3, 4)` is syntax sugar for `hypotenuse(3)(4)`.
+
+Supplying fewer arguments than a function expects returns a new, specialised function waiting for the remaining arguments. In the below, `filter` is partially applied to create a specialised `take_positive` function, which is only later applied to a list.
+
+```mathfp
+items := [2, 5, -1, -3]
+take_positive := filter(x |-> x > 0)
+take_positive(items)  // [2, 5]
 ```
 
 #### Builtins
 
-Common math functions like `sin` and `sqrt` are defined as native functions, and can be used anywhere.
+Common math functions like `sin` / `sqrt` and several other utilities are pre-defined and can be used anywhere.
 
 ```mathfp
 square := x |-> x * x;

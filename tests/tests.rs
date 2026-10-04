@@ -246,3 +246,22 @@ fn test_incomplete_grouping() {
     let input = "f := x + (1";
     execute_or_panic(input, &[]);
 }
+
+#[test]
+fn test_comma_arguments() {
+    let input = "
+        f := x |-> y |-> z |-> x;
+        f(1, 2)(3)
+    ";
+    execute_or_panic(input, &[]);
+}
+
+#[test]
+#[should_panic]
+fn test_invalid_comma_arguments() {
+    let input = "
+        f := x |-> y |-> z |-> x;
+        f(1, 2, 3, 4)
+    ";
+    execute_or_panic(input, &[]);
+}

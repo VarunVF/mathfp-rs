@@ -427,13 +427,21 @@ impl Parser {
         while self.matches(TokenType::LeftParen) {
             self.advance();
 
-            let arg = Box::new(self.expression()?);
-            self.consume(TokenType::RightParen)?;
+            loop {
+                let arg = Box::new(self.expression()?);
+                left = Expr::FunctionCall {
+                    func: Box::new(left),
+                    arg,
+                };
+                
+                if self.matches(TokenType::Comma) {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
 
-            left = Expr::FunctionCall {
-                func: Box::new(left),
-                arg,
-            };
+            self.consume(TokenType::RightParen)?;
         }
 
         Ok(left)

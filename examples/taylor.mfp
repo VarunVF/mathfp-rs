@@ -1,29 +1,21 @@
-// Measure the time taken to call the given lambda
-measure := f |-> {
-    t1 := clock(nil);
-    f(nil);
-    clock(nil) - t1
-};
-
 // Rough Taylor series approximation
 custom_sin := x |-> {
     // exponent helper
-    pow := x |-> n |-> if n then x*pow(x)(n-1) else 1;
+    pow := x |-> n |-> if n then x*pow(x, n-1) else 1;
 
     // factorial helper
     fact := n |-> if n then n*fact(n-1) else 1;
 
     // first 4 terms
     x
-    - pow(x)(3) / fact(3)
-    + pow(x)(5) / fact(5)
-    - pow(x)(7) / fact(7)
+    - pow(x, 3) / fact(3)
+    + pow(x, 5) / fact(5)
+    - pow(x, 7) / fact(7)
 };
 
-// Pass lambdas so that they don't execute immediately
 x := 3.0;
-builtin_time := measure(_ |-> sin(x));
-custom_time := measure(_ |-> custom_sin(x));
+builtin_time := time(sin, x);
+custom_time := time(custom_sin, x);
 
 print("     Results using x: "); println(x);
 print("Builtin sin time (s): "); println(builtin_time);
