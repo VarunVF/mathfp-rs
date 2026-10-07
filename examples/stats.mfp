@@ -1,0 +1,67 @@
+mean := list |-> {
+    total := foldl(acc |-> x |-> acc + x, 0, list);
+    count := len(list);
+    total / count
+};
+
+median := list |-> {
+    is_even := x |-> floor(x / 2) == (x / 2);
+
+    middle := floor(len(list) / 2);
+    if is_even(len(list)) then {
+        mid1 := get(list, middle-1);
+        mid2 := get(list, middle);
+        (mid1 + mid2) / 2
+    } else {
+        get(list, middle)
+    }
+};
+
+// Population variance = sum((x - mean)^2) / n
+variance := list |-> {
+    m := mean(list);
+    square := x |-> x * x;
+    squared_diffs := map(x |-> square(x - m), list);
+    mean(squared_diffs)
+};
+
+// Standard deviation
+std_dev := list |-> sqrt(variance(list));
+
+min := list |-> foldl(acc |-> x |-> if x < acc then x else acc, get(list, 0), list);
+max := list |-> foldl(acc |-> x |-> if x > acc then x else acc, get(list, 0), list);
+
+analyze_dataset := dataset |-> {
+    println("Data Summary:");
+    print("N        = "); println(len(dataset));
+    print("Min      = "); println(min(dataset));
+    print("Median   = "); println(median(dataset));
+    print("Max      = "); println(max(dataset));
+    print("Mean     = "); println(mean(dataset));
+    print("Variance = "); println(variance(dataset));
+    print("S.D.     = "); println(std_dev(dataset));
+
+    // Outliers: more than 1.5 SD away from mean
+    avg := mean(dataset);
+    sd := std_dev(dataset);
+    is_outlier := x |-> {
+        diff := if x > avg then x - avg else avg - x;
+        diff > sd * 1.5
+    };
+
+    outliers := filter(is_outlier, dataset);
+    print("Outliers = "); println(outliers);
+    println("")
+};
+
+sample_data := [12.4, 15.1, 11.8, 28.5, 13.2, 14.0, 12.9, 31.0, 11.5, 13.8];
+println("Input sample data:");
+println(sample_data);
+println("");
+
+elapsed_time := time(analyze_dataset, sample_data);
+println("Done in " + str(elapsed_time) + " seconds.");
+
+data_file := "data.txt";
+write_file(data_file, str(sample_data));
+println("Data written to " + data_file + ".");

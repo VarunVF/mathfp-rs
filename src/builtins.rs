@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    fs,
     rc::Rc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -31,6 +32,37 @@ pub fn __println(
     Ok(RuntimeValue::Nil)
 }
 
+pub fn __read_file(
+    value: RuntimeValue,
+    _env: Rc<RefCell<Environment>>,
+) -> Result<RuntimeValue, String> {
+    if let RuntimeValue::String(filename) = value {
+        let contents = fs::read_to_string(&filename)
+            .map_err(|e| format!("Failed to open file '{filename}': {e}"))?;
+        Ok(RuntimeValue::String(contents))
+    } else {
+        Err(format!(
+            "read_file() expects a filename string, not {}",
+            value.type_str()
+        ))
+    }
+}
+
+pub fn __write_file(
+    value: RuntimeValue,
+    _env: Rc<RefCell<Environment>>,
+) -> Result<RuntimeValue, String> {
+    if let RuntimeValue::List { elements: args } = value
+        && let Some(RuntimeValue::String(filename)) = args.first()
+        && let Some(RuntimeValue::String(text)) = args.get(1)
+    {
+        fs::write(filename, text).map_err(|e| e.to_string())?;
+        Ok(RuntimeValue::Nil)
+    } else {
+        Err("Invalid argument for write_file()".to_string())
+    }
+}
+
 pub fn __sin(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     match value {
         RuntimeValue::Number(n) => Ok(RuntimeValue::Number(n.sin())),
@@ -49,6 +81,26 @@ pub fn __sqrt(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Run
     match value {
         RuntimeValue::Number(n) => Ok(RuntimeValue::Number(n.sqrt())),
         _ => Err(format!("sqrt() expects a number, not {}", value.type_str())),
+    }
+}
+
+pub fn __floor(
+    value: RuntimeValue,
+    _env: Rc<RefCell<Environment>>,
+) -> Result<RuntimeValue, String> {
+    match value {
+        RuntimeValue::Number(n) => Ok(RuntimeValue::Number(n.floor())),
+        _ => Err(format!(
+            "floor() expects a number, not {}",
+            value.type_str()
+        )),
+    }
+}
+
+pub fn __ceil(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+    match value {
+        RuntimeValue::Number(n) => Ok(RuntimeValue::Number(n.ceil())),
+        _ => Err(format!("ceil() expects a number, not {}", value.type_str())),
     }
 }
 
@@ -86,16 +138,16 @@ pub fn __str(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Runt
 }
 
 pub fn __map(value: RuntimeValue, env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
-    if let RuntimeValue::List { elements: map_args } = value
-        && let Some(RuntimeValue::Function { .. }) = map_args.first()
+    if let RuntimeValue::List { elements: args } = value
+        && let Some(RuntimeValue::Function { .. }) = args.first()
         && let Some(RuntimeValue::List {
             elements: original_items,
-        }) = map_args.get(1)
+        }) = args.get(1)
     {
         let mut mapped = Vec::with_capacity(original_items.len());
         for item in original_items {
             let new_value =
-                Interpreter::interpret_function(map_args[0].clone(), item.clone(), Rc::clone(&env));
+                Interpreter::interpret_function(args[0].clone(), item.clone(), Rc::clone(&env));
             mapped.push(new_value?);
         }
         Ok(RuntimeValue::List { elements: mapped })
@@ -108,19 +160,16 @@ pub fn __filter(
     value: RuntimeValue,
     env: Rc<RefCell<Environment>>,
 ) -> Result<RuntimeValue, String> {
-    if let RuntimeValue::List { elements: map_args } = value
-        && let Some(RuntimeValue::Function { .. }) = map_args.first()
+    if let RuntimeValue::List { elements: args } = value
+        && let Some(RuntimeValue::Function { .. }) = args.first()
         && let Some(RuntimeValue::List {
             elements: original_items,
-        }) = map_args.get(1)
+        }) = args.get(1)
     {
         let mut filtered = Vec::with_capacity(original_items.len());
         for item in original_items {
-            let truth_value = Interpreter::interpret_function(
-                map_args[0].clone(),
-                item.clone(),
-                Rc::clone(&env),
-            )?;
+            let truth_value =
+                Interpreter::interpret_function(args[0].clone(), item.clone(), Rc::clone(&env))?;
             if truth_value.is_truthy() {
                 filtered.push(item.clone());
             }
@@ -132,17 +181,17 @@ pub fn __filter(
 }
 
 pub fn __foldl(value: RuntimeValue, env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
-    if let RuntimeValue::List { elements: map_args } = value
-        && let Some(RuntimeValue::Function { .. }) = map_args.first()
-        && let Some(initial) = map_args.get(1)
+    if let RuntimeValue::List { elements: args } = value
+        && let Some(RuntimeValue::Function { .. }) = args.first()
+        && let Some(initial) = args.get(1)
         && let Some(RuntimeValue::List {
             elements: original_items,
-        }) = map_args.get(2)
+        }) = args.get(2)
     {
         let mut reduced = initial.clone();
         for value in original_items.iter() {
             let with_right_arg =
-                Interpreter::interpret_function(map_args[0].clone(), reduced, Rc::clone(&env))?;
+                Interpreter::interpret_function(args[0].clone(), reduced, Rc::clone(&env))?;
             reduced =
                 Interpreter::interpret_function(with_right_arg, value.clone(), Rc::clone(&env))?;
         }
@@ -153,20 +202,17 @@ pub fn __foldl(value: RuntimeValue, env: Rc<RefCell<Environment>>) -> Result<Run
 }
 
 pub fn __foldr(value: RuntimeValue, env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
-    if let RuntimeValue::List { elements: map_args } = value
-        && let Some(RuntimeValue::Function { .. }) = map_args.first()
-        && let Some(initial) = map_args.get(1)
+    if let RuntimeValue::List { elements: args } = value
+        && let Some(RuntimeValue::Function { .. }) = args.first()
+        && let Some(initial) = args.get(1)
         && let Some(RuntimeValue::List {
             elements: original_items,
-        }) = map_args.get(2)
+        }) = args.get(2)
     {
         let mut reduced = initial.clone();
         for value in original_items.iter().rev() {
-            let with_left_arg = Interpreter::interpret_function(
-                map_args[0].clone(),
-                value.clone(),
-                Rc::clone(&env),
-            )?;
+            let with_left_arg =
+                Interpreter::interpret_function(args[0].clone(), value.clone(), Rc::clone(&env))?;
             reduced = Interpreter::interpret_function(with_left_arg, reduced, Rc::clone(&env))?;
         }
         Ok(reduced)
@@ -188,16 +234,16 @@ pub fn __len(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Runt
 }
 
 pub fn __get(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
-    if let RuntimeValue::List { elements: map_args } = value
-        && let Some(RuntimeValue::List { .. } | RuntimeValue::String(_)) = map_args.first()
-        && let Some(RuntimeValue::Number(i)) = map_args.get(1)
+    if let RuntimeValue::List { elements: args } = value
+        && let Some(RuntimeValue::List { .. } | RuntimeValue::String(_)) = args.first()
+        && let Some(RuntimeValue::Number(i)) = args.get(1)
     {
         let i = if i.fract() == 0.0 {
             *i as usize
         } else {
             Err("Indices must be integers, not float".to_string())?
         };
-        let elements = &map_args[0];
+        let elements = &args[0];
         elements.get(i).ok_or(format!(
             "Index {} is out of bounds for list of length {}",
             i,

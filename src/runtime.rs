@@ -193,10 +193,14 @@ impl Environment {
         env.bind_const("__args", RuntimeValue::List { elements });
         env.bind_native_fn("__print", builtins::__print);
         env.bind_native_fn("__println", builtins::__println);
+        env.bind_native_fn("__read_file", builtins::__read_file);
+        env.bind_native_fn("__write_file", builtins::__write_file);
 
         env.bind_native_fn("__sin", builtins::__sin);
         env.bind_native_fn("__cos", builtins::__cos);
         env.bind_native_fn("__sqrt", builtins::__sqrt);
+        env.bind_native_fn("__floor", builtins::__floor);
+        env.bind_native_fn("__ceil", builtins::__ceil);
 
         env.bind_native_fn("__clock", builtins::__clock);
 

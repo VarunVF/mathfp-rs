@@ -2,11 +2,15 @@
 args    := _ |-> __args;
 print   := x |-> __print(x);
 println := x |-> __println(x);
+read_file  := filename |-> __read_file(filename);
+write_file := filename |-> text |-> __write_file([filename, text]);
 
 // Math
-sin  := x |-> __sin(x);
-cos  := x |-> __cos(x);
-sqrt := x |-> __sqrt(x);
+sin   := x |-> __sin(x);
+cos   := x |-> __cos(x);
+sqrt  := x |-> __sqrt(x);
+floor := x |-> __floor(x);
+ceil  := x |-> __ceil(x);
 
 // Timing
 clock := __clock();
@@ -30,5 +34,5 @@ foldr  := f |-> init |-> list |-> __foldr([f, init, list]);
 reduce := foldl;
 
 // String, list methods
-len := list |-> __len(list);
-get := list |-> i |-> __get([list, i]);
+len := iterable |-> __len(iterable);
+get := iterable |-> i |-> __get([iterable, i]);
