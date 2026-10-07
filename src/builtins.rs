@@ -233,23 +233,111 @@ pub fn __len(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Runt
     Ok(RuntimeValue::Number(length as f64))
 }
 
+fn is_whole(x: f64) -> bool {
+    x.fract() == 0.0
+}
+
 pub fn __get(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     if let RuntimeValue::List { elements: args } = value
         && let Some(RuntimeValue::List { .. } | RuntimeValue::String(_)) = args.first()
-        && let Some(RuntimeValue::Number(i)) = args.get(1)
+        && let Some(&RuntimeValue::Number(i)) = args.get(1)
     {
-        let i = if i.fract() == 0.0 {
-            *i as usize
+        let index = if is_whole(i) {
+            i as usize
         } else {
             Err("Indices must be integers, not float".to_string())?
         };
         let elements = &args[0];
-        elements.get(i).ok_or(format!(
+        elements.get(index).ok_or(format!(
             "Index {} is out of bounds for list of length {}",
-            i,
+            index,
             elements.len()?
         ))
     } else {
         Err("Invalid argument for get()".to_string())
+    }
+}
+
+fn verify_and_get_range(start: f64, stop: f64) -> Result<(usize, usize), String> {
+    if !is_whole(start) || !is_whole(stop) {
+        Err(format!(
+            "Range bounds must be integers, not [{start}, {stop})"
+        ))
+    } else if start > stop {
+        Err(format!("Range [{start}, {stop}) is empty"))
+    } else {
+        Ok((start as usize, stop as usize))
+    }
+}
+
+pub fn __slice(
+    value: RuntimeValue,
+    _env: Rc<RefCell<Environment>>,
+) -> Result<RuntimeValue, String> {
+    if let RuntimeValue::List { elements: args } = value
+        && let Some(&RuntimeValue::Number(start)) = args.get(1)
+        && let Some(&RuntimeValue::Number(stop)) = args.get(2)
+    {
+        let (start, stop) = verify_and_get_range(start, stop)?;
+        if let Some(RuntimeValue::String(str)) = args.first() {
+            Ok(RuntimeValue::String(
+                str.char_indices()
+                    .filter(|(idx, _)| *idx >= start && *idx < stop)
+                    .map(|(_, ch)| ch)
+                    .collect(),
+            ))
+        } else if let Some(RuntimeValue::List { elements: items }) = args.first() {
+            Ok(RuntimeValue::List {
+                elements: items.get(start..stop).unwrap_or(&[]).to_vec(),
+            })
+        } else {
+            Err("Only strings and lists can be passed to slice()".to_string())
+        }
+    } else {
+        Err("Invalid argument for slice()".to_string())
+    }
+}
+
+pub fn __split(
+    value: RuntimeValue,
+    _env: Rc<RefCell<Environment>>,
+) -> Result<RuntimeValue, String> {
+    if let RuntimeValue::List { elements: args } = value
+        && let Some(RuntimeValue::String(str)) = args.first()
+        && let Some(RuntimeValue::String(sep)) = args.get(1)
+    {
+        Ok(RuntimeValue::List {
+            elements: str
+                .split(sep)
+                .map(|e| RuntimeValue::String(e.to_string()))
+                .collect(),
+        })
+    } else {
+        Err("Invalid argument for split()".to_string())
+    }
+}
+
+pub fn __join(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
+    if let RuntimeValue::List { elements: args } = value
+        && let Some(RuntimeValue::List { elements }) = args.first()
+        && let Some(RuntimeValue::String(sep)) = args.get(1)
+    {
+        let mut joined = String::new();
+        for i in 0..elements.len() {
+            if let RuntimeValue::String(str) = &elements[i] {
+                joined += str;
+                if i != elements.len() - 1 {
+                    joined += sep;
+                }
+            } else {
+                return Err(format!(
+                    "join() list items must be strings, not {}",
+                    elements[i].type_str()
+                ));
+            }
+        }
+        Ok(RuntimeValue::String(joined))
+    } else {
+        Err("Invalid argument for join()".to_string())
     }
 }

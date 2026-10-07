@@ -215,6 +215,9 @@ impl Environment {
 
         env.bind_native_fn("__len", builtins::__len);
         env.bind_native_fn("__get", builtins::__get);
+        env.bind_native_fn("__slice", builtins::__slice);
+        env.bind_native_fn("__split", builtins::__split);
+        env.bind_native_fn("__join", builtins::__join);
 
         env
     }
