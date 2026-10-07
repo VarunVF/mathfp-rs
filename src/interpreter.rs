@@ -26,6 +26,10 @@ impl Interpreter {
         interpreter
     }
 
+    pub fn report(error: &str) -> String {
+        format!("Runtime error:\n{error}")
+    }
+
     pub fn interpret(&self, expr: &Expr) -> Result<RuntimeValue, String> {
         Self::execute(expr, Rc::clone(&self.globals))
     }
