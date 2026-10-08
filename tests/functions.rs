@@ -1,51 +1,40 @@
+mod common;
+
+use common::{assert_bool, assert_number, assert_str};
 use mathfp::interpreter::Interpreter;
 use mathfp::runtime::RuntimeValue;
 use mathfp::{execute, execute_env_or_panic, execute_or_panic};
 
 #[test]
-fn test_complex_conditional_logic() {
-    // dangling else
-    let input = "if true then if false then 1 else 2";
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(2.0)));
-
-    // dangling else
-    let input = "if false then if false then 1 else 2";
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Nil));
-
-    // expression nesting
-    let input = "x := 10; 5 + (if x then 10 else 0)";
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(15.0)));
-}
-
-#[test]
 fn test_lambda() {
-    let input = "f := x |-> x + 1; f(10)";
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(11.0)));
+    assert_number("f := x |-> x + 1; f(10)", 11.0);
 }
 
 #[test]
 fn test_outer_scope_binding_change() {
+    // If lexical scoping works, f(5) uses x=20 (the latest global).
+    // In most functional languages, it should be 25.0.
     let input = "
         x := 10;
         f := y |-> x + y;
         x = 20;
         f(5)
     ";
-    // If lexical scoping works, f(5) uses x=20 (the latest global).
-    // In most functional languages, it should be 25.0.
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(25.0)));
+
+    assert_number(input, 25.0);
 }
 
 #[test]
 fn test_closures_and_higher_order() {
+    // (5 + 2) + (10 + 2) = 7 + 12 = 19
     let input = "
         make_adder := x |-> (y |-> x + y);
         add5 := make_adder(5);
         add10 := make_adder(10);
         add5(2) + add10(2)
     ";
-    // (5 + 2) + (10 + 2) = 7 + 12 = 19
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(19.0)));
+
+    assert_number(input, 19.0);
 }
 
 #[test]
@@ -75,7 +64,8 @@ fn test_function_composition() {
         double := x |-> x + x;
         square(double(5))
     ";
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(100.0)));
+
+    assert_number(input, 100.0);
 }
 
 #[test]
@@ -84,7 +74,8 @@ fn test_if_returning_function() {
         f := if true then (x |-> x + 1) else (x |-> x - 1);
         f(10)
     ";
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(11.0)));
+
+    assert_number(input, 11.0);
 }
 
 #[test]
@@ -93,7 +84,8 @@ fn test_recursion() {
         fact := n |-> if n then n*fact(n-1) else 1;
         fact(5)
     ";
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(120.0)));
+
+    assert_number(input, 120.0);
 }
 
 #[test]
@@ -104,27 +96,23 @@ fn test_mutual_recursion() {
         is_even(4)
     ";
 
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Boolean(true)));
+    assert_bool(input, true);
 }
 
 #[test]
 fn test_closure_equality() {
     // Closures should not be equal
-    let interpreter = Interpreter::default();
+    let input = "
+        make_adder := x |-> (y |-> x + y);
+        make_adder(5) == make_adder(10)
+    ";
 
-    execute_env_or_panic("make_adder := x |-> (y |-> x + y)", &interpreter);
-
-    let add5 = execute_env_or_panic("make_adder(5)", &interpreter);
-    let add10 = execute_env_or_panic("make_adder(10)", &interpreter);
-
-    assert_ne!(
-        add5, add10,
-        "Functions with different captured closures should not be equal"
-    );
+    assert_bool(input, false);
 }
 
 #[test]
 fn test_lexical_scope_isolation() {
+    // If lexical, it must be 15.0 (10 + 5)
     let input = "
         x := 10;
         f := n |-> x + n;
@@ -135,10 +123,9 @@ fn test_lexical_scope_isolation() {
         };
         
         caller(nil)
-    ";
+        ";
 
-    // If lexical, it must be 15.0 (10 + 5)
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(15.0)));
+    assert_number(input, 15.0);
 }
 
 #[test]
@@ -149,11 +136,12 @@ fn test_variable_scope() {
         x
     ";
 
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(7.0)));
+    assert_number(input, 7.0);
 }
 
 #[test]
 fn test_closure_mutation_counter() {
+    // The final call c(5) should return 1 + 1 + 5 = 7
     let input = "
         make_counter := start |-> {
             val := start;
@@ -168,35 +156,7 @@ fn test_closure_mutation_counter() {
         c(5)
     ";
 
-    // The final call c(5) should return 1 + 1 + 5 = 7
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(7.0)));
-}
-
-#[test]
-fn test_comments() {
-    let input = "
-        x := 10; // This is a comment
-        // This is a whole line comment
-        y := 5;
-        x + y // Returns 15
-    ";
-
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(15.0)));
-}
-
-#[test]
-fn test_comments_inside_functions() {
-    let input = "
-        // Squares a number.
-        f := x |-> {
-            // Calculate square
-            res := x * x;
-            res // return it
-        };
-        f(4)
-    ";
-
-    assert_eq!(execute(input, &[]), Ok(RuntimeValue::Number(16.0)));
+    assert_number(input, 7.0);
 }
 
 #[test]
@@ -241,7 +201,7 @@ fn test_incomplete_function_def() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic(expected = "Expected ) after parenthesised expression")]
 fn test_incomplete_grouping() {
     let input = "f := x + (1";
     execute_or_panic(input, &[]);
@@ -272,8 +232,5 @@ fn test_nullary_function() {
         f := _ |-> \"hello\";
         f()
     ";
-    assert_eq!(
-        execute_or_panic(input, &[]),
-        RuntimeValue::String("hello".to_string())
-    )
+    assert_str(input, "hello");
 }

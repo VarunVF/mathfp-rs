@@ -1,12 +1,11 @@
 mod common;
 
-use common::{assert_bool, assert_value};
+use common::{assert_bool, assert_number, assert_str};
 use mathfp::execute_or_panic;
-use mathfp::runtime::RuntimeValue;
 
 #[test]
 fn test_numeric_ops() {
-    assert_value("42 + 5 - 3 / 2 + 1 * 5", RuntimeValue::Number(50.5));
+    assert_number("42 + 5 - 3 / 2 + 1 * 5", 50.5);
 }
 
 #[test]
@@ -21,10 +20,7 @@ fn test_numeric_comparison() {
 
 #[test]
 fn test_string_op() {
-    assert_value(
-        "\"hello\" + \" world\"",
-        RuntimeValue::String("hello world".into()),
-    );
+    assert_str("\"hello\" + \" world\"", "hello world");
 }
 
 #[test]

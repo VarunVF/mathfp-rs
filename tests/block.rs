@@ -1,10 +1,9 @@
 mod common;
 
+use common::assert_nil;
 use mathfp::interpreter::Interpreter;
 use mathfp::runtime::RuntimeValue;
 use mathfp::{execute_env, execute_env_or_panic};
-
-use crate::common::assert_value;
 
 #[test]
 fn test_nested_block() {
@@ -37,5 +36,5 @@ fn test_block_isolation() {
 
 #[test]
 fn test_empty_block() {
-    assert_value("f := _ |-> {}; f()", RuntimeValue::Nil);
+    assert_nil("f := _ |-> {}; f()");
 }

@@ -1,16 +1,19 @@
+mod common;
+
+use common::{assert_nil, assert_number, assert_str};
 use mathfp::interpreter::Interpreter;
 use mathfp::runtime::RuntimeValue;
-use mathfp::{execute_env, execute_env_or_panic};
+use mathfp::{execute_env_or_panic, execute_or_panic};
 
 #[test]
 #[should_panic(expected = "Expected at least one match arm")]
 fn test_empty_match() {
-    let interpreter = Interpreter::default();
     let input = "
         divide := a |-> b |-> match {};
         result := divide(2)(1);
     ";
-    execute_env_or_panic(input, &interpreter);
+
+    execute_or_panic(input, &[]);
 }
 
 #[test]
@@ -24,32 +27,33 @@ fn test_match_exhaustive() {
         valid   := divide(2)(1);
         invalid := divide(2)(0);
     ";
-    execute_env_or_panic(input, &interpreter);
 
+    execute_env_or_panic(input, &interpreter);
     assert_eq!(
-        execute_env("valid", &interpreter),
-        Ok(RuntimeValue::Number(2.0))
+        execute_env_or_panic("valid", &interpreter),
+        RuntimeValue::Number(2.0)
     );
-    assert_eq!(execute_env("invalid", &interpreter), Ok(RuntimeValue::Nil));
+    assert_eq!(
+        execute_env_or_panic("invalid", &interpreter),
+        RuntimeValue::Nil
+    );
 }
 
 #[test]
 fn test_match_non_exhaustive() {
-    let interpreter = Interpreter::default();
     let input = "
         divide := a |-> b |-> match {
             b != 0 => a / b,
         };
         result := divide(2)(0);
+        result
     ";
-    execute_env_or_panic(input, &interpreter);
 
-    assert_eq!(execute_env("result", &interpreter), Ok(RuntimeValue::Nil));
+    assert_nil(input);
 }
 
 #[test]
 fn test_match_early_return() {
-    let interpreter = Interpreter::default();
     let input = "
         x := 10;
         result := match {
@@ -58,15 +62,11 @@ fn test_match_early_return() {
         }
     ";
 
-    assert_eq!(
-        execute_env(input, &interpreter),
-        Ok(RuntimeValue::Number(1.0))
-    );
+    assert_number(input, 1.0);
 }
 
 #[test]
 fn test_nested_match() {
-    let interpreter = Interpreter::default();
     let input = "
         x := 1;
         y := 2;
@@ -79,9 +79,15 @@ fn test_nested_match() {
         };
     ";
 
-    execute_env_or_panic(input, &interpreter);
-    assert_eq!(
-        execute_env("result", &interpreter),
-        Ok(RuntimeValue::String("both".to_string()))
-    );
+    assert_str(input, "both");
+}
+
+#[test]
+fn test_if_expr() {
+    // dangling else
+    assert_number("if true then if false then 1 else 2", 2.0);
+    assert_nil("if false then if false then 1 else 2");
+
+    // expression nesting
+    assert_number("x := 10; 5 + (if x then 10 else 0)", 15.0);
 }

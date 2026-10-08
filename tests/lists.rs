@@ -1,100 +1,83 @@
 mod common;
 
-use common::{assert_bool, assert_value};
+use common::{assert_bool, assert_list};
 use mathfp::runtime::RuntimeValue;
 
 #[test]
 fn test_empty() {
-    assert_value("[]", RuntimeValue::List { elements: vec![] });
+    assert_list("[]", &[]);
 }
 
 #[test]
 fn test_single_element() {
-    assert_value(
-        "[7]",
-        RuntimeValue::List {
-            elements: vec![RuntimeValue::Number(7.0)],
-        },
-    );
+    assert_list("[7]", &[RuntimeValue::Number(7.0)]);
 }
 
 #[test]
 fn test_trailing_comma() {
-    assert_value(
+    assert_list(
         "[2, 3,]",
-        RuntimeValue::List {
-            elements: vec![RuntimeValue::Number(2.0), RuntimeValue::Number(3.0)],
-        },
+        &[RuntimeValue::Number(2.0), RuntimeValue::Number(3.0)],
     );
 }
 
 #[test]
 fn test_same_types() {
-    assert_value(
+    assert_list(
         "[1, 2, 3]",
-        RuntimeValue::List {
-            elements: vec![
-                RuntimeValue::Number(1.0),
-                RuntimeValue::Number(2.0),
-                RuntimeValue::Number(3.0),
-            ],
-        },
+        &[
+            RuntimeValue::Number(1.0),
+            RuntimeValue::Number(2.0),
+            RuntimeValue::Number(3.0),
+        ],
     );
 }
 
 #[test]
 fn test_different_types() {
-    assert_value(
+    assert_list(
         "[7, \"hello\", true]",
-        RuntimeValue::List {
-            elements: vec![
-                RuntimeValue::Number(7.0),
-                RuntimeValue::String("hello".to_string()),
-                RuntimeValue::Boolean(true),
-            ],
-        },
+        &[
+            RuntimeValue::Number(7.0),
+            RuntimeValue::String("hello".to_string()),
+            RuntimeValue::Boolean(true),
+        ],
     );
 }
 
 #[test]
 fn test_nesting() {
-    assert_value(
+    assert_list(
         "[7, [\"hello\", true]]",
-        RuntimeValue::List {
-            elements: vec![
-                RuntimeValue::Number(7.0),
-                RuntimeValue::List {
-                    elements: vec![
-                        RuntimeValue::String("hello".to_string()),
-                        RuntimeValue::Boolean(true),
-                    ],
-                },
-            ],
-        },
+        &[
+            RuntimeValue::Number(7.0),
+            RuntimeValue::List {
+                elements: vec![
+                    RuntimeValue::String("hello".to_string()),
+                    RuntimeValue::Boolean(true),
+                ],
+            },
+        ],
     );
 }
 
 #[test]
 fn test_concat() {
-    assert_value(
+    assert_list(
         "[1] + [2]",
-        RuntimeValue::List {
-            elements: vec![RuntimeValue::Number(1.0), RuntimeValue::Number(2.0)],
-        },
+        &[RuntimeValue::Number(1.0), RuntimeValue::Number(2.0)],
     );
 }
 
 #[test]
 fn test_concat_nested() {
-    assert_value(
+    assert_list(
         "([1] + [2]) + [3]",
-        RuntimeValue::List {
-            elements: vec![
-                RuntimeValue::Number(1.0),
-                RuntimeValue::Number(2.0),
-                RuntimeValue::Number(3.0),
-            ],
-        },
+        &[
+            RuntimeValue::Number(1.0),
+            RuntimeValue::Number(2.0),
+            RuntimeValue::Number(3.0),
+        ],
     );
 }
 

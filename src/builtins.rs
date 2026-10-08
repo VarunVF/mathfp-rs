@@ -226,7 +226,7 @@ pub fn __len(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Runt
         RuntimeValue::List { elements } => elements.len(),
         RuntimeValue::String(elements) => elements.len(),
         _ => Err(format!(
-            "len() expects a list or string, not {}",
+            "len() expects a list or str, not {}",
             value.type_str()
         ))?,
     };
@@ -249,8 +249,9 @@ pub fn __get(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Runt
         };
         let elements = &args[0];
         elements.get(index).ok_or(format!(
-            "Index {} is out of bounds for list of length {}",
+            "Index {} is out of bounds for {} of length {}",
             index,
+            elements.type_str(),
             elements.len()?
         ))
     } else {

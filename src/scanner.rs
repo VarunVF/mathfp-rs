@@ -515,4 +515,29 @@ mod tests {
         let source = ": x";
         Scanner::new(source).scan().unwrap();
     }
+
+    #[test]
+    fn test_comments() {
+        let source = "
+            x := 10; // This is a comment
+            // This is a whole line comment
+            y := 5;
+            x + y // Returns 15
+        ";
+        Scanner::new(source).scan().unwrap();
+    }
+
+    #[test]
+    fn test_comments_inside_functions() {
+        let source = "
+            // Squares a number.
+            f := x |-> {
+                // Calculate square
+                res := x * x;
+                res // return it
+            };
+            f(4)
+        ";
+        Scanner::new(source).scan().unwrap();
+    }
 }

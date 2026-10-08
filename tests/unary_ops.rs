@@ -1,26 +1,16 @@
-use mathfp::interpreter::Interpreter;
-use mathfp::runtime::RuntimeValue;
-use mathfp::{execute_env, execute_env_or_panic, execute_or_panic};
+mod common;
+
+use common::assert_bool;
 
 #[test]
 fn test_unary_op_number() {
-    let interpreter = Interpreter::default();
-    let input = "
-        test1 := !(!1);     // true (if 1 is truthy)
-        test2 := -5 < 0;    // true (Tests Unary -)
-    ";
-
-    execute_env(input, &interpreter).unwrap();
-
-    let true_val = RuntimeValue::Boolean(true);
-    assert_eq!(execute_env_or_panic("test1", &interpreter), true_val);
-    assert_eq!(execute_env_or_panic("test2", &interpreter), true_val);
+    // 1 is truthy
+    assert_bool("!(!1)", true);
+    assert_bool("-5 < 0", true);
 }
 
 #[test]
 fn test_unary_op_boolean() {
-    let input = "test1 := !false;";
-
-    let result = execute_or_panic(input, &[]);
-    assert_eq!(result, RuntimeValue::Boolean(true));
+    assert_bool("!true", false);
+    assert_bool("!false", true);
 }

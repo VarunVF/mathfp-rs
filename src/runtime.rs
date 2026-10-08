@@ -68,7 +68,7 @@ impl RuntimeValue {
             Self::List { elements } => Ok(elements.len()),
             Self::String(elements) => Ok(elements.len()),
             _ => Err(format!(
-                "Length is only defined for list or string, not {}",
+                "Length is only defined for list or str, not {}",
                 self.type_str()
             )),
         }
@@ -79,7 +79,7 @@ impl RuntimeValue {
             Self::List { elements } => Ok(elements.is_empty()),
             Self::String(elements) => Ok(elements.is_empty()),
             _ => Err(format!(
-                "Length is only defined for list or string, not {}",
+                "Length is only defined for list or str, not {}",
                 self.type_str()
             )),
         }

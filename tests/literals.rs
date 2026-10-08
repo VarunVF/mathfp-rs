@@ -1,13 +1,13 @@
 mod common;
 
-use crate::common::assert_value;
+use common::{assert_bool, assert_list, assert_nil, assert_number, assert_str};
 use mathfp::{execute, execute_or_panic, runtime::RuntimeValue};
 
 #[test]
 fn test_number() {
-    assert_value("10.", RuntimeValue::Number(10.0));
-    assert_value(".05", RuntimeValue::Number(0.05));
-    assert_value("7.2", RuntimeValue::Number(7.2));
+    assert_number("10.", 10.0);
+    assert_number(".05", 0.05);
+    assert_number("7.2", 7.2);
 }
 
 #[test]
@@ -18,22 +18,16 @@ fn test_invalid_number() {
 
 #[test]
 fn test_string() {
-    assert_value(
-        // value of literal: "\thello, world!\n"
-        "\"\\thello, world!\\n\"",
-        RuntimeValue::String("\thello, world!\n".to_string()),
-    );
-    assert_value(
-        // value of literal: "\"quoted\""
-        "\"\\\"quoted\\\"\"",
-        RuntimeValue::String("\"quoted\"".to_string()),
-    );
+    // value of literal: "\thello, world!\n"
+    assert_str("\"\\thello, world!\\n\"", "\thello, world!\n");
+    // value of literal: "\"quoted\""
+    assert_str("\"\\\"quoted\\\"\"", "\"quoted\"");
 }
 
 #[test]
 fn test_boolean() {
-    assert_value("true", RuntimeValue::Boolean(true));
-    assert_value("false", RuntimeValue::Boolean(false));
+    assert_bool("true", true);
+    assert_bool("false", false);
 }
 
 #[test]
@@ -44,25 +38,23 @@ fn test_lambda() {
 
 #[test]
 fn test_function() {
-    assert_value("x := _ |-> 42; x()", RuntimeValue::Number(42.0));
+    assert_number("x := _ |-> 42; x()", 42.0);
 }
 
 #[test]
 fn test_list() {
-    assert_value("[]", RuntimeValue::List { elements: vec![] });
-    assert_value(
+    assert_list("[]", &[]);
+    assert_list(
         "[1, 2, []]",
-        RuntimeValue::List {
-            elements: vec![
-                RuntimeValue::Number(1.0),
-                RuntimeValue::Number(2.0),
-                RuntimeValue::List { elements: vec![] },
-            ],
-        },
+        &[
+            RuntimeValue::Number(1.0),
+            RuntimeValue::Number(2.0),
+            RuntimeValue::List { elements: vec![] },
+        ],
     );
 }
 
 #[test]
 fn test_nil() {
-    assert_value("nil", RuntimeValue::Nil);
+    assert_nil("nil");
 }
