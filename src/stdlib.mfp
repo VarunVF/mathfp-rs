@@ -13,7 +13,7 @@ floor := x |-> __floor(x);
 ceil  := x |-> __ceil(x);
 
 // Timing
-clock := __clock();
+clock := __clock;
 time  := f |-> x |-> {
     t1 := __clock();
     f(x);

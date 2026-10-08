@@ -271,14 +271,33 @@ impl Scanner {
     }
 
     fn string(&mut self) -> Result<Token, String> {
-        self.advance(); // skip the opening "
+        self.advance(); // Skip opening quote "
+
+        let str_start = self.start + 1;
+        let mut parsed_value = String::new();
         let mut is_terminated = false;
-        while self.current().is_some() {
-            let ch = self.current().unwrap();
+
+        while let Some(ch) = self.current() {
             self.advance();
-            if ch == '\"' {
+
+            if ch == '"' {
                 is_terminated = true;
                 break;
+            } else if ch == '\\' {
+                match self.current() {
+                    Some('"') => parsed_value.push('"'),
+                    Some('\\') => parsed_value.push('\\'),
+                    Some('n') => parsed_value.push('\n'),
+                    Some('t') => parsed_value.push('\t'),
+                    Some('r') => parsed_value.push('\r'),
+                    Some(other) => {
+                        return self.make_error(&format!("Invalid escape sequence: '\\{other}'"));
+                    }
+                    None => return self.make_error("Unterminated escape sequence"),
+                }
+                self.advance(); // Consume the escaped character
+            } else {
+                parsed_value.push(ch);
             }
         }
 
@@ -286,10 +305,10 @@ impl Scanner {
             return self.make_error("Unterminated string literal");
         }
 
-        let str_start = self.start + 1; // after the opening "
-        let str_end = self.current - 1; // the closing "
+        // Take the unescaped slice from source when reporting the lexeme
+        let str_end = self.current - 1; // Before closing quote "
         let lexeme = &self.source[str_start..str_end];
-        self.make_token(TokenType::String(lexeme.to_string()), lexeme)
+        self.make_token(TokenType::String(parsed_value), lexeme)
     }
 }
 

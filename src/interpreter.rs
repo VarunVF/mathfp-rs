@@ -27,7 +27,7 @@ impl Interpreter {
     }
 
     pub fn report(error: &str) -> String {
-        format!("Runtime error:\n{error}")
+        format!("Runtime error: {error}")
     }
 
     pub fn interpret(&self, expr: &Expr) -> Result<RuntimeValue, String> {
