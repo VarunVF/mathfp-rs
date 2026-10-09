@@ -159,6 +159,9 @@ fn test_get_list_out_of_bounds() {
 #[test]
 fn test_slice() {
     assert_str("slice(\"hello world\", 0, 5)", "hello");
+    assert_str("slice(\"hello world\", 0, -1)", "");
+    assert_str("slice(\"hello world\", 0, 0)", "");
+
     assert_list(
         "slice([6, 2, 5, 0], 0, 3)",
         &[
@@ -167,6 +170,12 @@ fn test_slice() {
             RuntimeValue::Number(5.0),
         ],
     );
+}
+
+#[test]
+#[should_panic(expected = "Interval bounds must be integers")]
+fn test_non_integer_slice() {
+    execute_or_panic("slice([], 0, 5.2)", &[]);
 }
 
 #[test]
@@ -209,5 +218,12 @@ fn test_range() {
         ],
     );
 
+    assert_list("range(0, -3)", &[]);
     assert_list("range(0, 0)", &[]);
+}
+
+#[test]
+#[should_panic(expected = "Interval bounds must be integers")]
+fn test_non_integer_range() {
+    execute_or_panic("range(0, 5.2)", &[]);
 }

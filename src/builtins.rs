@@ -262,10 +262,8 @@ pub fn __get(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Runt
 fn verify_and_get_slice(start: f64, stop: f64) -> Result<(usize, usize), String> {
     if !is_whole(start) || !is_whole(stop) {
         Err(format!(
-            "Range bounds must be integers, not [{start}, {stop})"
+            "Interval bounds must be integers, not [{start}, {stop})"
         ))
-    } else if start > stop {
-        Err(format!("Range [{start}, {stop}) is empty"))
     } else {
         Ok((start as usize, stop as usize))
     }
@@ -346,10 +344,8 @@ pub fn __join(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Run
 fn verify_and_get_range(start: f64, stop: f64) -> Result<(i64, i64), String> {
     if !is_whole(start) || !is_whole(stop) {
         Err(format!(
-            "Range bounds must be integers, not [{start}, {stop})"
+            "Interval bounds must be integers, not [{start}, {stop})"
         ))
-    } else if start > stop {
-        Err(format!("Range [{start}, {stop}) is empty"))
     } else {
         Ok((start as i64, stop as i64))
     }
