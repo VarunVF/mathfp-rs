@@ -39,3 +39,4 @@ get := iterable |-> i |-> __get([iterable, i]);
 slice := iterable |-> start |-> stop |-> __slice([iterable, start, stop]);
 split := str |-> sep |-> __split([str, sep]);
 join := str_list |-> sep |-> __join([str_list, sep]);
+range := start |-> stop |-> __range([start, stop]);

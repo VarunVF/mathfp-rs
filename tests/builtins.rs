@@ -184,3 +184,30 @@ fn test_split() {
 fn test_join() {
     assert_str("join([\"hello\", \"world\"], \" \")", "hello world");
 }
+
+#[test]
+fn test_range() {
+    assert_list(
+        "range(0, 5)",
+        &[
+            RuntimeValue::Number(0.0),
+            RuntimeValue::Number(1.0),
+            RuntimeValue::Number(2.0),
+            RuntimeValue::Number(3.0),
+            RuntimeValue::Number(4.0),
+        ],
+    );
+
+    assert_list(
+        "range(-2, 3)",
+        &[
+            RuntimeValue::Number(-2.0),
+            RuntimeValue::Number(-1.0),
+            RuntimeValue::Number(0.0),
+            RuntimeValue::Number(1.0),
+            RuntimeValue::Number(2.0),
+        ],
+    );
+
+    assert_list("range(0, 0)", &[]);
+}

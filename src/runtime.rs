@@ -218,6 +218,7 @@ impl Environment {
         env.bind_native_fn("__slice", builtins::__slice);
         env.bind_native_fn("__split", builtins::__split);
         env.bind_native_fn("__join", builtins::__join);
+        env.bind_native_fn("__range", builtins::__range);
 
         env
     }

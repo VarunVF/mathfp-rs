@@ -259,7 +259,7 @@ pub fn __get(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Runt
     }
 }
 
-fn verify_and_get_range(start: f64, stop: f64) -> Result<(usize, usize), String> {
+fn verify_and_get_slice(start: f64, stop: f64) -> Result<(usize, usize), String> {
     if !is_whole(start) || !is_whole(stop) {
         Err(format!(
             "Range bounds must be integers, not [{start}, {stop})"
@@ -279,7 +279,7 @@ pub fn __slice(
         && let Some(&RuntimeValue::Number(start)) = args.get(1)
         && let Some(&RuntimeValue::Number(stop)) = args.get(2)
     {
-        let (start, stop) = verify_and_get_range(start, stop)?;
+        let (start, stop) = verify_and_get_slice(start, stop)?;
         if let Some(RuntimeValue::String(str)) = args.first() {
             Ok(RuntimeValue::String(
                 str.char_indices()
@@ -340,5 +340,36 @@ pub fn __join(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<Run
         Ok(RuntimeValue::String(joined))
     } else {
         Err("Invalid argument for join()".to_string())
+    }
+}
+
+fn verify_and_get_range(start: f64, stop: f64) -> Result<(i64, i64), String> {
+    if !is_whole(start) || !is_whole(stop) {
+        Err(format!(
+            "Range bounds must be integers, not [{start}, {stop})"
+        ))
+    } else if start > stop {
+        Err(format!("Range [{start}, {stop}) is empty"))
+    } else {
+        Ok((start as i64, stop as i64))
+    }
+}
+
+pub fn __range(
+    value: RuntimeValue,
+    _env: Rc<RefCell<Environment>>,
+) -> Result<RuntimeValue, String> {
+    if let RuntimeValue::List { elements: args } = value
+        && let Some(&RuntimeValue::Number(start)) = args.first()
+        && let Some(&RuntimeValue::Number(stop)) = args.get(1)
+    {
+        let (start, stop) = verify_and_get_range(start, stop)?;
+        Ok(RuntimeValue::List {
+            elements: (start..stop)
+                .map(|x| RuntimeValue::Number(x as f64))
+                .collect(),
+        })
+    } else {
+        Err("Invalid argument for range()".to_string())
     }
 }
