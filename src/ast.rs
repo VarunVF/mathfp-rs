@@ -53,7 +53,6 @@ pub enum Expr {
     List {
         elements: Vec<Expr>,
     },
-    Empty,
 }
 
 #[derive(Clone, Debug, PartialEq)]

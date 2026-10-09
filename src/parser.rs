@@ -120,8 +120,8 @@ impl Parser {
 
         while !self.is_at_end() {
             match self.statement() {
-                Ok(Expr::Empty) => continue,
-                Ok(stmt) => statements.push(stmt),
+                Ok(Some(stmt)) => statements.push(stmt),
+                Ok(None) => continue,
                 Err(message) => {
                     errors.push(message);
                     self.synchronise();
@@ -136,53 +136,66 @@ impl Parser {
         }
     }
 
-    fn statement(&mut self) -> Result<Expr, String> {
-        let expr = self.expression()?;
-        match expr {
-            Expr::Empty => Ok(expr),
-            _ => match self.current_kind() {
-                Some(TokenType::EndStmt | TokenType::Eof) => Ok(expr),
+    fn statement(&mut self) -> Result<Option<Expr>, String> {
+        match self.expression()? {
+            Some(expr) => match self.current_kind() {
+                Some(TokenType::EndStmt | TokenType::Eof) => Ok(Some(expr)),
                 Some(kind) => Err(parser_fmt!(
                     self,
                     "Expected ; after expression, found {kind}"
                 )),
                 None => Err(parser_fmt!(self, "Expected ; after expression")),
             },
+            None => Ok(None),
         }
     }
 
-    fn expression(&mut self) -> Result<Expr, String> {
-        match self.current_kind() {
-            Some(TokenType::EndStmt) => self.empty_expr(),
-            Some(TokenType::If) => self.if_expr(),
-            Some(TokenType::Match) => self.match_expr(),
-            Some(TokenType::LeftBrace) => self.block_expr(),
-            Some(TokenType::Eof) | None => Err(parser_fmt!(self, "Expected an expression")),
-            Some(_) => match self.lookahead_kind() {
-                Some(TokenType::Equal) => self.assignment(),
-                Some(TokenType::Binding) => self.binding(),
-                Some(TokenType::MapsTo) => self.function_def(),
-                _ => self.binary_expr(),
-            },
+    fn expression(&mut self) -> Result<Option<Expr>, String> {
+        let kind = self.current_kind();
+        if let Some(TokenType::EndStmt) = kind {
+            self.advance();
+            Ok(None)
+        } else {
+            match kind {
+                Some(TokenType::If) => self.if_expr(),
+                Some(TokenType::Match) => self.match_expr(),
+                Some(TokenType::LeftBrace) => self.block_expr(),
+                Some(TokenType::Eof) | None => Err(parser_fmt!(
+                    self,
+                    "Expected an expression before end of input"
+                )),
+                Some(kind) => match self.lookahead_kind() {
+                    Some(TokenType::Equal) => self.assignment(),
+                    Some(TokenType::Binding) => self.binding(),
+                    Some(TokenType::MapsTo) => self.function_def(),
+                    Some(_) => self.binary_expr(),
+                    _ => Err(parser_fmt!(self, "Expected an expression after {}", kind)),
+                },
+            }
+            .map(Some)
         }
-    }
-
-    fn empty_expr(&mut self) -> Result<Expr, String> {
-        self.advance();
-        Ok(Expr::Empty)
     }
 
     fn if_expr(&mut self) -> Result<Expr, String> {
         self.consume(TokenType::If)?;
-        let cond_expr = Box::new(self.expression()?);
+        let cond_expr = Box::new(self.expression()?.ok_or(parser_fmt!(
+            self,
+            "Expected a conditional expression after 'if'"
+        ))?);
 
         self.consume(TokenType::Then)?;
-        let then_expr = Box::new(self.expression()?);
+        let then_expr = Box::new(
+            self.expression()?
+                .ok_or(parser_fmt!(self, "Expected an expression after 'then'"))?,
+        );
 
         // else branch is optional
         let else_expr = if self.matches(TokenType::Else) {
             self.advance();
-            Box::new(self.expression()?)
+            Box::new(
+                self.expression()?
+                    .ok_or(parser_fmt!(self, "Expected an expression after 'else'"))?,
+            )
         } else {
             Box::new(Expr::Literal(LiteralValue::Nil))
         };
@@ -219,8 +232,7 @@ impl Parser {
 
         let mut statements: Vec<Expr> = vec![];
         while !self.matches(TokenType::RightBrace) {
-            let stmt = self.expression()?;
-            if !matches!(stmt, Expr::Empty) {
+            if let Some(stmt) = self.expression()? {
                 statements.push(stmt);
             }
         }
@@ -230,9 +242,9 @@ impl Parser {
     }
 
     fn match_arm(&mut self) -> Option<MatchArm> {
-        let pattern = Box::new(self.expression().ok()?);
+        let pattern = Box::new(self.expression().ok()??);
         self.consume(TokenType::FatArrow).ok()?;
-        let body = Box::new(self.expression().ok()?);
+        let body = Box::new(self.expression().ok()??);
 
         Some(MatchArm { pattern, body })
     }
@@ -258,11 +270,11 @@ impl Parser {
                     "Expected an assignment expression, found {kind}",
                 ));
             }
-            None => return Err(parser_fmt!(self, "Expected an expression")),
+            None => return Err(parser_fmt!(self, "Expected an assignment expression")),
         };
         Ok(Expr::Assign {
             name,
-            expr: Box::new(expr),
+            expr: Box::new(expr.ok_or(parser_fmt!(self, "Expected an expression to assign"))?),
         })
     }
 
@@ -284,11 +296,11 @@ impl Parser {
                     "Expected a binding expression, found {kind}"
                 ));
             }
-            None => return Err(parser_fmt!(self, "Expected an expression")),
+            None => return Err(parser_fmt!(self, "Expected a binding expression")),
         };
         Ok(Expr::Binding {
             name,
-            expr: Box::new(expr),
+            expr: Box::new(expr.ok_or(parser_fmt!(self, "Expected an expression to bind"))?),
         })
     }
 
@@ -316,7 +328,9 @@ impl Parser {
                 self,
                 "Function body cannot be empty, use {{}} instead"
             )),
-            Some(_) => self.expression(),
+            Some(_) => self
+                .expression()
+                .map(|expr| expr.ok_or(parser_fmt!(self, "Expected a function body")))?,
         }
     }
 
@@ -440,7 +454,10 @@ impl Parser {
 
             // Read comma-separated args
             loop {
-                let arg = Box::new(self.expression()?);
+                let arg = Box::new(
+                    self.expression()?
+                        .ok_or(parser_fmt!(self, "Expected an argument"))?,
+                );
                 left = Expr::FunctionCall {
                     func: Box::new(left),
                     arg,
@@ -479,13 +496,15 @@ impl Parser {
                 self,
                 "Expected a primary expression, found {kind}"
             )),
-            None => Err(parser_fmt!(self, "Expected an expression")),
+            None => Err(parser_fmt!(self, "Expected a primary expression")),
         }
     }
 
     fn grouping(&mut self) -> Result<Expr, String> {
         self.consume(TokenType::LeftParen)?; // opening (
-        let expr = self.expression()?;
+        let expr = self
+            .expression()?
+            .ok_or(parser_fmt!(self, "Expected an expression after ("))?;
         match self.current_kind() {
             Some(TokenType::RightParen) => {
                 self.advance(); // closing )
@@ -505,7 +524,10 @@ impl Parser {
         let mut elements: Vec<Expr> = vec![];
 
         while !self.matches(TokenType::RightSquareBracket) {
-            elements.push(self.expression()?);
+            elements.push(
+                self.expression()?
+                    .ok_or(parser_fmt!(self, "Expected an expression after '['"))?,
+            );
             if self.matches(TokenType::Comma) {
                 self.advance();
             }
@@ -542,6 +564,19 @@ mod tests {
     #[test]
     fn test_empty() {
         assert_parse(vec![make_token(Eof)], Program { statements: vec![] });
+    }
+
+    #[test]
+    fn test_empty_rhs() {
+        assert!(matches!(
+            Parser::new(vec![
+                make_token(Identifier("x".to_string())),
+                make_token(Binding),
+                make_token(EndStmt),
+            ])
+            .parse(),
+            Err(_)
+        ));
     }
 
     #[test]

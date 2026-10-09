@@ -81,7 +81,6 @@ impl Interpreter {
                 Self::execute_function_call(func, arg, Rc::clone(&env))
             }
             Expr::List { elements } => Self::execute_list(elements, Rc::clone(&env)),
-            Expr::Empty => unreachable!("The program should never contain Empty expressions"),
         }
     }
 
