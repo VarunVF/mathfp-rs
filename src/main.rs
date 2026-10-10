@@ -3,9 +3,10 @@ use std::{env::args, fs};
 
 use mathfp::{execute_env, interpreter::Interpreter, runtime::RuntimeValue};
 
-fn run_file(file_name: &str, args: &[String]) -> Result<(), String> {
+fn run_file(args: &[String]) -> Result<(), String> {
+    let file_name = args.first().ok_or("No script file was provided to run")?;
     let contents = fs::read_to_string(file_name)
-        .map_err(|e| format!("Could not read file {file_name}: {e}"))?;
+        .map_err(|e| format!("Could not read file '{file_name}': {e}"))?;
 
     let interpreter = Interpreter::new(args);
     let _ = execute_env(&contents, &interpreter).map_err(|e| eprintln!("{e}"));
@@ -51,7 +52,6 @@ fn main() -> Result<(), String> {
     let argv: Vec<String> = args().collect();
     match argv.as_slice() {
         [] | [_] => run_repl(),
-        // [_, file_path] => run_file(file_path, &[]),
-        [_, file_path, script_args @ ..] => run_file(file_path, script_args),
+        [_, args @ ..] => run_file(args),
     }
 }
