@@ -2,82 +2,78 @@
 
 [![CI & Docs](https://github.com/VarunVF/mathfp-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/VarunVF/mathfp-rs/actions/workflows/rust.yml)
 
-**MathFP** is a functional, expression-oriented programming language designed for mathematical modeling and rapid prototyping. Built with Rust, it prioritizes safety and mathematical correctness.
+MathFP is a functional programming language written in Rust. It aims to look and feel like math while being practical to use.
 
-[Online Documentation](https://varunvf.github.io/mathfp-rs)
+```mathfp
+fibonacci := n |-> match {
+    n < 2  => n,
+    n >= 2 => fibonacci(n-1) + fibonacci(n-2)
+};
 
-## Features
+println(map(fibonacci, range(0, 10)))  // [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+```
 
-* **Expression-First:** Everything in MathFP is an expression, which allows for more elegant composition of logic.
-* **First-Class Functions:** Functions are first-class values. They can be passed as arguments and returned from functions or other expressions.
-* **Rich Error Reporting:** Detailed scanner and parser error messages, including line and column tracking.
+Everything in MathFP is an expression: `if` conditionals, `match` conditionals, lambdas, functions, and more are all equally treated as values.
+
+MathFP provides detailed scanner and parser error messages with line and column tracking to help you catch mistakes easily.
+
+```mathfp
+>>> y := (2 * (x + 3);
+Parser errors:
+[Line 1, Col 18] Expected ')' after parenthesised expression, found ';'
+```
 
 ## Getting Started
 
-### Prerequisites
+### Building
 
-* [Rust](https://www.rust-lang.org/tools/install)
-
-### Installation
-
-Clone the repository and build the project using Cargo:
+Install [Rust](https://www.rust-lang.org/tools/install), then clone the repository and build the project using Cargo. (Pass the `-r` flag to build or run an optimised release build.)
 
 ```bash
 git clone https://github.com/varunvf/mathfp-rs.git
 cd mathfp-rs/
-cargo build --release
+cargo build
+```
+
+Run the REPL to start evaluating expressions, or run a script by passing the filename as an argument.
+
+```bash
+cargo run  # Start the REPL
+cargo run script.mfp  # Run a script
 ```
 
 ### Editor Support
 
-A simple syntax highlighting extension for VS Code is available (located in `editors/vscode/`).
-Most editor themes should work alongside with this extension.
+A simple syntax highlighting extension for VS Code / VSCodium is available at [`editors/vscode/`](https://github.com/VarunVF/mathfp-rs/tree/main/editors/vscode#mathfp-vs-code-extension). Most editor themes should work alongside with this extension.
 
-### Usage
+## Syntax
 
-Run the REPL to start evaluating expressions:
+The below is an explanation of the language syntax. If you prefer reading code or want more examples, you can find several scripts at [`examples/`](https://github.com/VarunVF/mathfp-rs/tree/main/examples).
 
-```bash
-cargo run
-```
+### Variables
 
-You can also run a script by passing the filename as an argument.
-
-```bash
-cargo run -- script.mfp
-```
-
-## Language Syntax
-
-### Variable Bindings
-
-Variables are declared using the `:=` operator.
+Variables are declared using the `:=` operator, and most variables can be modified using the `=` operator.
 A variable can only be declared once in the same scope.
 
 ```mathfp
-x := 10; y := x * 5;
-```
-
-Most variables can be modified using the `=` operator.
-```mathfp
-x = 2 * y;
+x := 10;        // x is declared as 10
+y := x * 5;     // y is declared as 50
+x = 2 * y;      // x is set to 100
 ```
 
 ### Types
 
-Currently supported types:
+Variables can be of any of the following types:
 - Numbers
 - Strings
 - Booleans
 - Functions
-    - User-defined functions
-    - Native functions (e.g. `sin`, `sqrt`)
-- Lists (using square brackets: `numbers := [4, 5, 6];`)
+- Lists (using square brackets: `[4, 5, 6]`)
 - Nil (the type of the `nil` value)
 
 ### Conditionals
 
-Any expression can be used in the `then` and `else` branches of an `if`-expression.
+Any expression can be used in the `then` or `else` clause of an `if`-expression.
 
 ```mathfp
 if y then (z := 1) else (z := 2)
@@ -85,7 +81,7 @@ if y then (z := 1) else (z := 2)
 
 If you omit the `else` branch but the condition is false, `nil` is implicitly returned.
 ```mathfp
-res := if 0 then 5;  // res is now nil
+res := if 0 then 5;  // res is set to nil
 ```
 
 `match` expressions can be used to define case-by-case logic or piecewise functions.
@@ -112,7 +108,7 @@ Functions can contain multiple statements wrapped in braces `{...}`; the value o
 
 #### Currying & Multi-Argument Functions
 
-All functions take exactly one argument. Multi-argument functions are defined by 'chaining' single-argument lambdas (currying). For example:
+All functions take exactly one argument; multi-argument functions are defined by 'chaining' single-argument lambdas (this technique is called currying). In the snippet below, `hypotenuse` takes an argument of `3` and returns another function, which in turn takes an argument of `4`:
 
 ```mathfp
 hypotenuse := a |-> b |-> {
@@ -135,11 +131,12 @@ take_positive(items)  // [2, 5]
 
 #### Builtins
 
-Common math functions like `sin` / `sqrt` and several other utilities are pre-defined and can be used anywhere.
+Common math functions like `sin` / `sqrt` and several other utilities are built-in and can be used anywhere.
+You can read the full list of builtins at [`src/stdlib.mfp`](https://github.com/VarunVF/mathfp-rs/blob/main/src/stdlib.mfp).
 
 ```mathfp
 square := x |-> x * x;
-square(sin(9)) + square(cos(9))
+f := x |-> square(sin(x)) + square(cos(x));
 ```
 
 ## Development
@@ -154,10 +151,7 @@ cargo test
 
 ### Documentation
 
-The project documentation is automatically updated on every push to `main`.
-**[View the online documentation](https://varunvf.github.io/mathfp-rs)**
-
-You can also view the local version by running:
+The [project documentation](https://varunvf.github.io/mathfp-rs) is automatically updated on every push to `main`. You can also view the local version by running:
 ```bash
 cargo doc --open
 ```
