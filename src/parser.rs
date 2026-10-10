@@ -142,9 +142,9 @@ impl Parser {
                 Some(TokenType::EndStmt | TokenType::Eof) => Ok(Some(expr)),
                 Some(kind) => Err(parser_fmt!(
                     self,
-                    "Expected ; after expression, found {kind}"
+                    "Expected ';' after expression, found {kind}"
                 )),
-                None => Err(parser_fmt!(self, "Expected ; after expression")),
+                None => Err(parser_fmt!(self, "Expected ';' after expression")),
             },
             None => Ok(None),
         }
@@ -211,12 +211,16 @@ impl Parser {
         self.consume(TokenType::Match)?;
         self.consume(TokenType::LeftBrace)?;
 
+        if let Some(TokenType::RightBrace) = self.current_kind() {
+            return Err(parser_fmt!(self, "Expected at least one match arm"));
+        }
+
         let mut arms = vec![];
-        arms.push(self.match_arm().ok_or("Expected at least one match arm")?);
+        arms.push(self.match_arm()?);
 
         while let Some(TokenType::Comma) = self.current_kind() {
             self.consume(TokenType::Comma)?;
-            if let Some(arm) = self.match_arm() {
+            if let Ok(arm) = self.match_arm() {
                 arms.push(arm);
             } else {
                 break;
@@ -241,12 +245,18 @@ impl Parser {
         Ok(Expr::Block { statements })
     }
 
-    fn match_arm(&mut self) -> Option<MatchArm> {
-        let pattern = Box::new(self.expression().ok()??);
-        self.consume(TokenType::FatArrow).ok()?;
-        let body = Box::new(self.expression().ok()??);
+    fn match_arm(&mut self) -> Result<MatchArm, String> {
+        let pattern = Box::new(
+            self.expression()?
+                .ok_or(parser_fmt!(self, "Expected a condition for match arm"))?,
+        );
+        self.consume(TokenType::FatArrow)?;
+        let body = Box::new(
+            self.expression()?
+                .ok_or(parser_fmt!(self, "Expected a body for match arm"))?,
+        );
 
-        Some(MatchArm { pattern, body })
+        Ok(MatchArm { pattern, body })
     }
 
     fn assignment(&mut self) -> Result<Expr, String> {
@@ -504,7 +514,7 @@ impl Parser {
         self.consume(TokenType::LeftParen)?; // opening (
         let expr = self
             .expression()?
-            .ok_or(parser_fmt!(self, "Expected an expression after ("))?;
+            .ok_or(parser_fmt!(self, "Expected an expression after '('"))?;
         match self.current_kind() {
             Some(TokenType::RightParen) => {
                 self.advance(); // closing )
@@ -512,7 +522,7 @@ impl Parser {
             }
             Some(kind) => Err(parser_fmt!(
                 self,
-                "Expected ) after parenthesised expression, found {kind}"
+                "Expected ')' after parenthesised expression, found {kind}"
             )),
             None => Err(parser_fmt!(self, "Expected an expression after '('")),
         }
@@ -524,12 +534,15 @@ impl Parser {
         let mut elements: Vec<Expr> = vec![];
 
         while !self.matches(TokenType::RightSquareBracket) {
-            elements.push(
-                self.expression()?
-                    .ok_or(parser_fmt!(self, "Expected an expression after '['"))?,
-            );
+            let item = self
+                .expression()?
+                .ok_or(parser_fmt!(self, "Expected a list element"))?;
+            elements.push(item);
             if self.matches(TokenType::Comma) {
                 self.advance();
+                continue;
+            } else if !self.matches(TokenType::RightSquareBracket) {
+                Err(parser_fmt!(self, "Expected ',' or ']' after list element"))?
             }
         }
 
@@ -664,7 +677,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Expected ) after parenthesised expression")]
+    #[should_panic(expected = "Expected ')' after parenthesised expression")]
     fn test_invalid_grouping_close() {
         // ((9)*(9
         Parser::new(vec![
@@ -682,7 +695,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Expected ; after expression")]
+    #[should_panic(expected = "Expected ';' after expression")]
     fn test_invalid_grouping_open() {
         // 9)*(9))
         Parser::new(vec![

@@ -15,35 +15,12 @@ impl Scanner {
             start: 0,
             current: 0,
             line: 1,
-            column: 0,
+            column: 1,
         }
     }
 
     pub fn report(errors: &[String]) -> String {
         format!("Scanner errors:\n{}", errors.join("\n"))
-    }
-
-    fn make_error(&self, message: &str) -> Result<Token, String> {
-        Err(format!(
-            "[Line {}, Col {}] {}",
-            self.line, self.column, message
-        ))
-    }
-
-    /// Creates a new Token, without advancing.
-    fn make_token(&self, kind: TokenType, lexeme: &str) -> Result<Token, String> {
-        Ok(Token {
-            kind,
-            lexeme: String::from(lexeme),
-            line: self.line,
-            column: self.column,
-        })
-    }
-
-    /// Advances by the length of the lexeme and creates a new Token.
-    fn advance_and_make_token(&mut self, kind: TokenType, lexeme: &str) -> Result<Token, String> {
-        self.advance_by(lexeme.len());
-        self.make_token(kind, lexeme)
     }
 
     pub fn scan(&mut self) -> Result<Vec<Token>, Vec<String>> {
@@ -75,13 +52,13 @@ impl Scanner {
 
             let ch = match self.current() {
                 Some(value) => value,
-                None => return self.advance_and_make_token(TokenType::Eof, ""),
+                None => return self.make_token_and_advance(TokenType::Eof, ""),
             };
 
             match ch {
-                '+' => return self.advance_and_make_token(TokenType::Plus, "+"),
-                '-' => return self.advance_and_make_token(TokenType::Minus, "-"),
-                '*' => return self.advance_and_make_token(TokenType::Star, "*"),
+                '+' => return self.make_token_and_advance(TokenType::Plus, "+"),
+                '-' => return self.make_token_and_advance(TokenType::Minus, "-"),
+                '*' => return self.make_token_and_advance(TokenType::Star, "*"),
                 '/' => {
                     if self.match_char('/') {
                         while let Some(ch) = self.current()
@@ -91,50 +68,50 @@ impl Scanner {
                         }
                         continue;
                     } else {
-                        return self.advance_and_make_token(TokenType::Slash, "/");
+                        return self.make_token_and_advance(TokenType::Slash, "/");
                     }
                 }
-                '(' => return self.advance_and_make_token(TokenType::LeftParen, "("),
-                ')' => return self.advance_and_make_token(TokenType::RightParen, ")"),
-                '{' => return self.advance_and_make_token(TokenType::LeftBrace, "{"),
-                '}' => return self.advance_and_make_token(TokenType::RightBrace, "}"),
-                '[' => return self.advance_and_make_token(TokenType::LeftSquareBracket, "["),
-                ']' => return self.advance_and_make_token(TokenType::RightSquareBracket, "]"),
-                ',' => return self.advance_and_make_token(TokenType::Comma, ","),
+                '(' => return self.make_token_and_advance(TokenType::LeftParen, "("),
+                ')' => return self.make_token_and_advance(TokenType::RightParen, ")"),
+                '{' => return self.make_token_and_advance(TokenType::LeftBrace, "{"),
+                '}' => return self.make_token_and_advance(TokenType::RightBrace, "}"),
+                '[' => return self.make_token_and_advance(TokenType::LeftSquareBracket, "["),
+                ']' => return self.make_token_and_advance(TokenType::RightSquareBracket, "]"),
+                ',' => return self.make_token_and_advance(TokenType::Comma, ","),
                 '!' => {
                     if self.match_char('=') {
-                        return self.advance_and_make_token(TokenType::BangEqual, "!=");
+                        return self.make_token_and_advance(TokenType::BangEqual, "!=");
                     } else {
-                        return self.advance_and_make_token(TokenType::Bang, "!");
+                        return self.make_token_and_advance(TokenType::Bang, "!");
                     }
                 }
                 '=' => {
                     if self.match_char('=') {
-                        return self.advance_and_make_token(TokenType::EqualEqual, "==");
+                        return self.make_token_and_advance(TokenType::EqualEqual, "==");
                     } else if self.match_char('>') {
-                        return self.advance_and_make_token(TokenType::FatArrow, "=>");
+                        return self.make_token_and_advance(TokenType::FatArrow, "=>");
                     } else {
-                        return self.advance_and_make_token(TokenType::Equal, "=");
+                        return self.make_token_and_advance(TokenType::Equal, "=");
                     }
                 }
                 '<' => {
                     if self.match_char('=') {
-                        return self.advance_and_make_token(TokenType::LessEqual, "<=");
+                        return self.make_token_and_advance(TokenType::LessEqual, "<=");
                     } else {
-                        return self.advance_and_make_token(TokenType::Less, "<");
+                        return self.make_token_and_advance(TokenType::Less, "<");
                     }
                 }
                 '>' => {
                     if self.match_char('=') {
-                        return self.advance_and_make_token(TokenType::GreaterEqual, ">=");
+                        return self.make_token_and_advance(TokenType::GreaterEqual, ">=");
                     } else {
-                        return self.advance_and_make_token(TokenType::Greater, ">");
+                        return self.make_token_and_advance(TokenType::Greater, ">");
                     }
                 }
                 '|' => return self.maps_to(),
                 ':' => return self.binding(),
                 ';' => {
-                    return self.advance_and_make_token(TokenType::EndStmt, &ch.to_string());
+                    return self.make_token_and_advance(TokenType::EndStmt, &ch.to_string());
                 }
                 ' ' | '\n' | '\r' | '\t' => {
                     // Skip whitespace
@@ -168,11 +145,12 @@ impl Scanner {
         match self.current() {
             Some('\n') => {
                 self.line += 1;
-                self.column = 0;
+                self.column = 1;
             }
-            _ => {
+            Some(_) => {
                 self.column += 1;
             }
+            None => (),
         }
     }
 
@@ -182,22 +160,60 @@ impl Scanner {
         }
     }
 
-    fn unexpected(&mut self, ch: char) -> Result<Token, String> {
+    /// Creates a new `Token` and advances by the length of the lexeme.
+    fn make_token_and_advance(&mut self, kind: TokenType, lexeme: &str) -> Result<Token, String> {
+        let token = self.make_token(kind, lexeme);
+        self.advance_by(lexeme.len());
+        token
+    }
+
+    /// Creates a new `Token` without advancing.
+    fn make_token(&mut self, kind: TokenType, lexeme: &str) -> Result<Token, String> {
+        Ok(Token {
+            kind,
+            lexeme: String::from(lexeme),
+            line: self.line,
+            column: self.column,
+        })
+    }
+
+    /// Creates a new `Err` and advances.
+    fn make_error_and_advance(&mut self, message: &str) -> Result<Token, String> {
+        let err = self.make_error(message);
         self.advance();
-        self.make_error(&format!("Unexpected character: {}", ch))
+        err
+    }
+
+    /// Creates a new `Err` without advancing.
+    fn make_error(&mut self, message: &str) -> Result<Token, String> {
+        Err(format!(
+            "[Line {}, Col {}] {}",
+            self.line, self.column, message
+        ))
+    }
+
+    fn unexpected(&mut self, ch: char) -> Result<Token, String> {
+        self.make_error_and_advance(&format!("Unexpected character: {}", ch))
     }
 
     fn number(&mut self) -> Result<Token, String> {
-        while self.current().is_some() {
-            let ch = self.current().unwrap();
-            if ch.is_numeric() || ch == '.' {
+        let mut num_periods = 0;
+        while let Some(ch) = self.current() {
+            if ch.is_numeric() {
+                self.advance();
+            } else if ch == '.' {
+                num_periods += 1;
                 self.advance();
             } else {
                 break;
             }
         }
 
-        let lexeme = &self.source[self.start..self.current];
+        let lexeme = &self.source[self.start..self.current].to_string();
+        if num_periods > 1 {
+            return self.make_error(&format!("Invalid numeric literal '{lexeme}': Numeric literals must have at most one decimal point"));
+        }
+
         let value = match lexeme.parse::<f64>() {
             Ok(float) => float,
             Err(e) => {
@@ -218,13 +234,13 @@ impl Scanner {
             }
         }
 
-        let lexeme = &self.source[self.start..self.current];
-        match lexeme {
+        let lexeme = &self.source[self.start..self.current].to_string();
+        match lexeme.as_str() {
             "if" => self.make_token(TokenType::If, lexeme),
             "then" => self.make_token(TokenType::Then, lexeme),
             "else" => self.make_token(TokenType::Else, lexeme),
             "match" => self.make_token(TokenType::Match, lexeme),
-            _ => self.make_token(TokenType::Identifier(lexeme.to_string()), lexeme),
+            _ => self.make_token(TokenType::Identifier(lexeme.clone()), lexeme),
         }
     }
 
@@ -233,19 +249,13 @@ impl Scanner {
         let lexeme = match self.source.get(self.start..self.current + 3) {
             Some(slice) => slice,
             None => {
-                self.advance();
-                return self.make_error("Expected a |-> (MapsTo) symbol, reached EOF");
+                return self
+                    .make_error_and_advance("Expected a '|->' (maps-to) symbol, but reached EOF");
             }
         };
         match lexeme {
-            "|->" => {
-                self.advance_by(3);
-                self.make_token(TokenType::MapsTo, "|->")
-            }
-            _ => {
-                self.advance();
-                self.make_error("Expected a |-> (MapsTo) symbol")
-            }
+            "|->" => self.make_token_and_advance(TokenType::MapsTo, "|->"),
+            _ => self.make_error_and_advance("Expected a '|->' (maps-to) symbol"),
         }
     }
 
@@ -254,19 +264,13 @@ impl Scanner {
         let lexeme = match self.source.get(self.start..self.current + 2) {
             Some(slice) => slice,
             None => {
-                self.advance();
-                return self.make_error("Expected a := (Binding) symbol, reached EOF");
+                return self
+                    .make_error_and_advance("Expected a ':=' (binding) symbol, but reached EOF");
             }
         };
         match lexeme {
-            ":=" => {
-                self.advance_by(2);
-                self.make_token(TokenType::Binding, ":=")
-            }
-            _ => {
-                self.advance();
-                self.make_error("Expected a := (Binding) symbol")
-            }
+            ":=" => self.make_token_and_advance(TokenType::Binding, ":="),
+            _ => self.make_error_and_advance("Expected a ':=' (binding) symbol"),
         }
     }
 
@@ -291,9 +295,11 @@ impl Scanner {
                     Some('t') => parsed_value.push('\t'),
                     Some('r') => parsed_value.push('\r'),
                     Some(other) => {
-                        return self.make_error(&format!("Invalid escape sequence: '\\{other}'"));
+                        return self.make_error_and_advance(&format!(
+                            "Invalid escape sequence: '\\{other}'"
+                        ));
                     }
-                    None => return self.make_error("Unterminated escape sequence"),
+                    None => return self.make_error_and_advance("Unterminated escape sequence"),
                 }
                 self.advance(); // Consume the escaped character
             } else {
@@ -302,12 +308,12 @@ impl Scanner {
         }
 
         if !is_terminated {
-            return self.make_error("Unterminated string literal");
+            return self.make_error_and_advance("Unterminated string literal");
         }
 
         // Take the unescaped slice from source when reporting the lexeme
         let str_end = self.current - 1; // Before closing quote "
-        let lexeme = &self.source[str_start..str_end];
+        let lexeme = &self.source[str_start..str_end].to_string();
         self.make_token(TokenType::String(parsed_value), lexeme)
     }
 }
@@ -496,21 +502,21 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Failed to parse '..' as a number")]
+    #[should_panic(expected = "Numeric literals must have at most one decimal point")]
     fn test_invalid_float_literal() {
-        let source = "..";
+        let source = "0..";
         Scanner::new(source).scan().unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "Expected a |-> (MapsTo) symbol")]
+    #[should_panic(expected = "Expected a '|->' (maps-to) symbol")]
     fn test_invalid_mapsto() {
         let source = "|  x";
         Scanner::new(source).scan().unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "Expected a := (Binding) symbol")]
+    #[should_panic(expected = "Expected a ':=' (binding) symbol")]
     fn test_invalid_binding() {
         let source = ": x";
         Scanner::new(source).scan().unwrap();

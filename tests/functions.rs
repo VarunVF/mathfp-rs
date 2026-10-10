@@ -201,7 +201,7 @@ fn test_incomplete_function_def() {
 }
 
 #[test]
-#[should_panic(expected = "Expected ) after parenthesised expression")]
+#[should_panic(expected = "Expected ')' after parenthesised expression")]
 fn test_incomplete_grouping() {
     let input = "f := x + (1";
     execute_or_panic(input, &[]);

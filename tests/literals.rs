@@ -11,7 +11,7 @@ fn test_number() {
 }
 
 #[test]
-#[should_panic(expected = "Failed to parse '..' as a number")]
+#[should_panic(expected = "Numeric literals must have at most one decimal point")]
 fn test_invalid_number() {
     execute_or_panic("..", &[]);
 }
