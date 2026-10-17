@@ -59,20 +59,18 @@ impl Transpiler {
             }
             Expr::Binary { left, op, right } => {
                 if op.lexeme == "/" {
-                    let left = if let Expr::Grouping(inner) = &**left {
-                        inner
-                    } else {
-                        left
-                    };
-                    let right = if let Expr::Grouping(inner) = &**right {
-                        inner
-                    } else {
-                        right
-                    };
+                    let mut left_inner: &Expr = left;
+                    let mut right_inner: &Expr = right;
+                    if let Expr::Grouping(inner) = &**left {
+                        left_inner = inner;
+                    }
+                    if let Expr::Grouping(inner) = &**right {
+                        right_inner = inner;
+                    }
                     Ok(format!(
                         "\\frac{{{}}}{{{}}}",
-                        self.expr_to_latex(left)?,
-                        self.expr_to_latex(right)?
+                        self.expr_to_latex(left_inner)?,
+                        self.expr_to_latex(right_inner)?
                     ))
                 } else {
                     let op_str = match op.lexeme.as_str() {
@@ -182,5 +180,59 @@ impl Transpiler {
                 Ok(result)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_latex(input: &str, expected: &str) {
+        let result = Transpiler::new(false).transpile(input).unwrap();
+        assert_eq!(result.trim(), expected.trim());
+    }
+
+    fn assert_document(input: &str, expected: &str) {
+        let result = Transpiler::new(true).transpile(input).unwrap();
+        assert_eq!(result.trim(), expected.trim());
+    }
+
+    #[test]
+    fn test_document() {
+        let input = "x := 0";
+        let expected = "\
+            \\documentclass{article}\n\
+            \\usepackage{amsmath}\n\
+            \\usepackage{mathtools}\n\
+            \\begin{document}\n\
+            \n\
+            \\[\\mathrm{x} \\coloneq 0\\]\n\
+            \n\
+            \\end{document}\n";
+        assert_document(input, expected);
+    }
+
+    #[test]
+    fn test_quadratic_formula() {
+        assert_latex(
+            "(-b + sqrt(b*b - 4*a*c)) / (2*a)",
+            r"\[\frac{-b + \sqrt{b \cdot b - 4 \cdot a \cdot c}}{2 \cdot a}\]",
+        );
+    }
+
+    #[test]
+    fn test_floor_ceil() {
+        assert_latex(
+            "floor(5.1) + ceil(7.2)",
+            r"\[\lfloor 5.1 \rfloor + \lceil 7.2 \rceil\]",
+        );
+    }
+
+    #[test]
+    fn test_piecewise_match() {
+        assert_latex(
+            "f := x |-> match { x < 0 => 0, x >= 0 => x }",
+            r"\[\mathrm{f} \coloneq x \mapsto \begin{cases} 0 & \text{if } x < 0, \\ x & \text{if } x \ge 0 \\ \end{cases}\]",
+        );
     }
 }
