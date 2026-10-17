@@ -1,20 +1,44 @@
+use std::fs;
 use std::io::{self, Write};
-use std::{env::args, fs};
 
+use mathfp::latex::Transpiler;
 use mathfp::{execute_env, interpreter::Interpreter, runtime::RuntimeValue};
 
-fn run_file(args: &[String]) -> Result<(), String> {
-    let file_name = args.first().ok_or("No script file was provided to run")?;
+use clap::{self, Parser};
+
+#[derive(clap::Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    /// Script file to read program from
+    script: Option<String>,
+
+    /// Transpile expressions to LaTeX code
+    #[arg(short, long)]
+    latex: bool,
+
+    /// Arguments passed to program
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+    script_args: Vec<String>,
+}
+
+fn run_file(file_name: &str, args: &Cli) -> Result<(), String> {
     let contents = fs::read_to_string(file_name)
         .map_err(|e| format!("Could not read file '{file_name}': {e}"))?;
 
-    let interpreter = Interpreter::new(args);
-    let _ = execute_env(&contents, &interpreter).map_err(|e| eprintln!("{e}"));
+    if args.latex {
+        match Transpiler::new(true).transpile(&contents) {
+            Ok(latex) => println!("{latex}"),
+            Err(e) => eprintln!("{e}"),
+        }
+    } else {
+        let interpreter = Interpreter::new(&args.script_args);
+        let _ = execute_env(&contents, &interpreter).map_err(|e| eprintln!("{e}"));
+    }
 
     Ok(())
 }
 
-fn run_repl() -> Result<(), String> {
+fn run_repl(args: &Cli) -> Result<(), String> {
     let interpreter = Interpreter::default();
 
     loop {
@@ -28,30 +52,30 @@ fn run_repl() -> Result<(), String> {
             .read_line(&mut input)
             .map_err(|e| format!("Error reading input: {e}"))?;
 
-        match bytes_read {
-            0 => {
-                // EOF
-                println!();
-                return Ok(());
+        if bytes_read == 0 {
+            // EOF
+            println!();
+            return Ok(());
+        } else if args.latex {
+            match Transpiler::new(false).transpile(&input) {
+                Ok(latex) => println!("{latex}"),
+                Err(e) => eprintln!("{e}"),
             }
-            _ => {
-                match execute_env(&input, &interpreter) {
-                    Ok(value) => {
-                        if value != RuntimeValue::Nil {
-                            println!("{value}")
-                        }
-                    }
-                    Err(e) => eprintln!("{e}"),
-                };
+        } else {
+            match execute_env(&input, &interpreter) {
+                Ok(RuntimeValue::Nil) => (),
+                Ok(value) => println!("{value}"),
+                Err(e) => println!("{e}"),
             }
-        };
+        }
     }
 }
 
 fn main() -> Result<(), String> {
-    let argv: Vec<String> = args().collect();
-    match argv.as_slice() {
-        [] | [_] => run_repl(),
-        [_, args @ ..] => run_file(args),
+    let args = Cli::parse();
+    if let Some(ref file_name) = args.script {
+        run_file(file_name, &args)
+    } else {
+        run_repl(&args)
     }
 }

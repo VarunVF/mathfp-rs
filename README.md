@@ -17,10 +17,17 @@ Everything in MathFP is an expression: `if` conditionals, `match` conditionals, 
 
 MathFP provides detailed scanner and parser error messages with line and column tracking to help you catch mistakes easily.
 
-```mathfp
+```
 >>> y := (2 * (x + 3);
 Parser errors:
 [Line 1, Col 18] Expected ')' after parenthesised expression, found ';'
+```
+
+MathFP expressions can also transpile to LaTeX code (via the `--latex` option).
+
+```
+>>> abs := x |-> if x >= 0 then x else -x
+\[\mathrm{abs} \coloneq x \mapsto \begin{cases} x & \text{if } x \ge 0, \\ -x &\text{otherwise} \end{cases}\]
 ```
 
 ## Getting Started

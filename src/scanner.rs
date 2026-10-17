@@ -193,7 +193,7 @@ impl Scanner {
     }
 
     fn unexpected(&mut self, ch: char) -> Result<Token, String> {
-        self.make_error_and_advance(&format!("Unexpected character: {}", ch))
+        self.make_error_and_advance(&format!("Unexpected character: {}", ch.escape_debug()))
     }
 
     fn number(&mut self) -> Result<Token, String> {

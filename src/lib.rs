@@ -1,6 +1,7 @@
 pub mod ast;
 pub mod builtins;
 pub mod interpreter;
+pub mod latex;
 pub mod parser;
 pub mod runtime;
 pub mod scanner;

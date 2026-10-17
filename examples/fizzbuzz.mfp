@@ -1,0 +1,13 @@
+mod := n |-> d |-> {
+    closest_multiple := floor(n / d) * d;
+    n - closest_multiple
+};
+
+fizzbuzz := x |-> match {
+    mod(x, 15) == 0 => println("fizzbuzz"),
+    mod(x, 3) == 0 => println("fizz"),
+    mod(x, 5) == 0 => println("buzz"),
+    true => println(x)
+};
+
+map(fizzbuzz, range(1, 21))
