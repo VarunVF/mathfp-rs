@@ -141,8 +141,31 @@ impl Interpreter {
                     }),
                     (left, right) => Self::make_unsupported_binary_expr_err(&left, &right, op),
                 },
-                // Minus, Star, Slash not defined for other types.
-                TokenType::Minus | TokenType::Star | TokenType::Slash => {
+                // Star also defined for List and Number.
+                TokenType::Star => match (left, right) {
+                    (RuntimeValue::List { elements }, RuntimeValue::Number(count))
+                    | (RuntimeValue::Number(count), RuntimeValue::List { elements }) => {
+                        if count.fract() == 0.0 && count >= 0.0 {
+                            let count = count as usize;
+                            let repeated = elements
+                                .iter()
+                                .cycle()
+                                .take(elements.len() * count)
+                                .cloned()
+                                .collect();
+                            Ok(RuntimeValue::List { elements: repeated })
+                        } else if count <= 0.0 {
+                            Err(format!(
+                                "Cannot multiply list by negative number: '{count}'"
+                            ))
+                        } else {
+                            Err(format!("Cannot multiply list by float: '{count}'"))
+                        }
+                    }
+                    (left, right) => Self::make_unsupported_binary_expr_err(&left, &right, op),
+                },
+                // Minus, Slash not defined for other types.
+                TokenType::Minus | TokenType::Slash => {
                     Self::make_unsupported_binary_expr_err(&left, &right, op)
                 }
                 TokenType::Less => Ok(RuntimeValue::Boolean(left < right)),
