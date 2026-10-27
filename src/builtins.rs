@@ -224,7 +224,7 @@ pub fn __foldr(value: RuntimeValue, env: Rc<RefCell<Environment>>) -> Result<Run
 pub fn __len(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     let length = match value {
         RuntimeValue::List { elements } => elements.len(),
-        RuntimeValue::String(elements) => elements.len(),
+        RuntimeValue::String(str) => str.chars().count(),
         _ => Err(format!(
             "len() expects a list or str, not {}",
             value.type_str()
@@ -296,12 +296,9 @@ pub fn __slice(
         && let Some(&RuntimeValue::Number(stop)) = args.get(2)
     {
         if let Some(RuntimeValue::String(str)) = args.first() {
-            let (start, stop) = verify_and_get_slice(start, stop, str.len())?;
+            let (start, stop) = verify_and_get_slice(start, stop, str.chars().count())?;
             Ok(RuntimeValue::String(
-                str.char_indices()
-                    .filter(|(idx, _)| *idx >= start && *idx < stop)
-                    .map(|(_, ch)| ch)
-                    .collect(),
+                str.chars().skip(start).take(stop - start).collect(),
             ))
         } else if let Some(RuntimeValue::List { elements: items }) = args.first() {
             let (start, stop) = verify_and_get_slice(start, stop, items.len())?;

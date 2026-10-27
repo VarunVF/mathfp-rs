@@ -200,12 +200,54 @@ fn test_non_integer_slice() {
 }
 
 #[test]
+fn test_utf8_string_functions() {
+    assert_str("s := \"héllo\"", "héllo");
+    assert_number("len(\"héllo\")", 5.0);
+    assert_str("get(\"héllo\", 4)", "o");
+
+    assert_str("slice(\"héllo\", 1, 3)", "él");
+    assert_str("slice(\"héllo\", 0, 5)", "héllo");
+
+    assert_list(
+        "split(\"a→b→c\", \"→\")",
+        &[
+            RuntimeValue::String("a".to_string()),
+            RuntimeValue::String("b".to_string()),
+            RuntimeValue::String("c".to_string()),
+        ],
+    );
+
+    assert_str("join([\"é\", \"π\"], \"-\")", "é-π");
+}
+
+#[test]
+#[should_panic(expected = "Interval [0, 6) is out of bounds for iterable of length 5")]
+fn test_utf8_slice_oob() {
+    execute_or_panic("slice(\"héllo\", 0, 6)", &[]);
+}
+
+#[test]
+fn test_utf8_identifier() {
+    assert_number("θ := 3.14; θ", 3.14)
+}
+
+#[test]
 fn test_split() {
     assert_list(
         "split(\"hello world\", \" \")",
         &[
             RuntimeValue::String("hello".to_string()),
             RuntimeValue::String("world".to_string()),
+        ],
+    );
+
+    assert_list(
+        "split(\"hi\", \"\")",
+        &[
+            RuntimeValue::String("".to_string()),
+            RuntimeValue::String("h".to_string()),
+            RuntimeValue::String("i".to_string()),
+            RuntimeValue::String("".to_string()),
         ],
     );
 }

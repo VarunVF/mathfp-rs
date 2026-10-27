@@ -23,12 +23,16 @@ Parser errors:
 [Line 1, Col 18] Expected ')' after parenthesised expression, found ';'
 ```
 
-MathFP expressions can also transpile to LaTeX code (via the `--latex` option).
+MathFP expressions can also be transpiled to LaTeX (via the `--latex` option).
+Run it with a script to produce a complete LaTeX document, or without one to transpile expressions interactively:
 
 ```
 >>> abs := x |-> if x >= 0 then x else -x
 \[\mathrm{abs} \coloneq x \mapsto \begin{cases} x & \text{if } x \ge 0, \\ -x &\text{otherwise} \end{cases}\]
 ```
+
+> **Note:** LaTeX output doesn't fully support non-ASCII characters yet.
+> Accented letters in strings work with pdfLaTeX, but symbols like `π` or `θ` won't render.
 
 ## Getting Started
 

@@ -1,0 +1,15 @@
+// ASCII
+println("hello");
+
+// Non-ASCII
+s := "héllo";
+println(s);
+println(len(s));
+println(get(s, 1));
+println(slice(s, 1, 3));
+
+println("π ≈ 3.14");
+println("Rust 🦀");
+println(len("🦀"));
+
+// Some Unicode symbols in a comment: θ ∑ 🦀

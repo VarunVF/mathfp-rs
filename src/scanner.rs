@@ -3,7 +3,7 @@ use crate::token::{Token, TokenType};
 pub struct Scanner {
     source: String,
     start: usize,
-    current: usize,
+    byte_pos: usize,
     line: usize,
     column: usize,
 }
@@ -13,7 +13,7 @@ impl Scanner {
         Self {
             source: source.to_owned(),
             start: 0,
-            current: 0,
+            byte_pos: 0,
             line: 1,
             column: 1,
         }
@@ -48,9 +48,9 @@ impl Scanner {
 
     fn scan_token(&mut self) -> Result<Token, String> {
         loop {
-            self.start = self.current;
+            self.start = self.byte_pos;
 
-            let ch = match self.current() {
+            let ch = match self.peek() {
                 Some(value) => value,
                 None => return self.make_token_and_advance(TokenType::Eof, ""),
             };
@@ -61,7 +61,7 @@ impl Scanner {
                 '*' => return self.make_token_and_advance(TokenType::Star, "*"),
                 '/' => {
                     if self.match_char('/') {
-                        while let Some(ch) = self.current()
+                        while let Some(ch) = self.peek()
                             && ch != '\n'
                         {
                             self.advance();
@@ -126,13 +126,19 @@ impl Scanner {
         }
     }
 
-    fn current(&self) -> Option<char> {
-        self.source.chars().nth(self.current)
+    fn peek(&self) -> Option<char> {
+        self.source[self.byte_pos..].chars().next()
+    }
+
+    fn peek_next(&self) -> Option<char> {
+        let mut it = self.source[self.byte_pos..].chars();
+        it.next();
+        it.next()
     }
 
     /// Returns true if `ch` matches the next char in the source.
     fn match_char(&self, ch: char) -> bool {
-        if let Some(actual) = self.source.chars().nth(self.current + 1) {
+        if let Some(actual) = self.peek_next() {
             ch == actual
         } else {
             false
@@ -140,15 +146,15 @@ impl Scanner {
     }
 
     fn advance(&mut self) {
-        self.current += 1;
-
-        match self.current() {
+        match self.peek() {
             Some('\n') => {
                 self.line += 1;
                 self.column = 1;
+                self.byte_pos += 1;
             }
-            Some(_) => {
+            Some(ch) => {
                 self.column += 1;
+                self.byte_pos += ch.len_utf8();
             }
             None => (),
         }
@@ -198,7 +204,7 @@ impl Scanner {
 
     fn number(&mut self) -> Result<Token, String> {
         let mut num_periods = 0;
-        while let Some(ch) = self.current() {
+        while let Some(ch) = self.peek() {
             if ch.is_numeric() {
                 self.advance();
             } else if ch == '.' {
@@ -209,7 +215,7 @@ impl Scanner {
             }
         }
 
-        let lexeme = &self.source[self.start..self.current].to_string();
+        let lexeme = &self.source[self.start..self.byte_pos].to_string();
         if num_periods > 1 {
             return self.make_error(&format!("Invalid numeric literal '{lexeme}': Numeric literals must have at most one decimal point"));
         }
@@ -225,8 +231,8 @@ impl Scanner {
     }
 
     fn identifier(&mut self) -> Result<Token, String> {
-        while self.current().is_some() {
-            let ch = self.current().unwrap();
+        while self.peek().is_some() {
+            let ch = self.peek().unwrap();
             if ch.is_alphanumeric() || ch == '_' {
                 self.advance();
             } else {
@@ -234,7 +240,7 @@ impl Scanner {
             }
         }
 
-        let lexeme = &self.source[self.start..self.current].to_string();
+        let lexeme = &self.source[self.start..self.byte_pos].to_string();
         match lexeme.as_str() {
             "if" => self.make_token(TokenType::If, lexeme),
             "then" => self.make_token(TokenType::Then, lexeme),
@@ -246,7 +252,7 @@ impl Scanner {
 
     fn maps_to(&mut self) -> Result<Token, String> {
         // symbol |->
-        let lexeme = match self.source.get(self.start..self.current + 3) {
+        let lexeme = match self.source.get(self.start..self.byte_pos + 3) {
             Some(slice) => slice,
             None => {
                 return self
@@ -261,7 +267,7 @@ impl Scanner {
 
     fn binding(&mut self) -> Result<Token, String> {
         // symbol :=
-        let lexeme = match self.source.get(self.start..self.current + 2) {
+        let lexeme = match self.source.get(self.start..self.byte_pos + 2) {
             Some(slice) => slice,
             None => {
                 return self
@@ -281,14 +287,14 @@ impl Scanner {
         let mut parsed_value = String::new();
         let mut is_terminated = false;
 
-        while let Some(ch) = self.current() {
+        while let Some(ch) = self.peek() {
             self.advance();
 
             if ch == '"' {
                 is_terminated = true;
                 break;
             } else if ch == '\\' {
-                match self.current() {
+                match self.peek() {
                     Some('"') => parsed_value.push('"'),
                     Some('\\') => parsed_value.push('\\'),
                     Some('n') => parsed_value.push('\n'),
@@ -312,7 +318,7 @@ impl Scanner {
         }
 
         // Take the unescaped slice from source when reporting the lexeme
-        let str_end = self.current - 1; // Before closing quote "
+        let str_end = self.byte_pos - 1; // Before closing quote "
         let lexeme = &self.source[str_start..str_end].to_string();
         self.make_token(TokenType::String(parsed_value), lexeme)
     }

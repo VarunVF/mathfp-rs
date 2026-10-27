@@ -66,7 +66,7 @@ impl RuntimeValue {
     pub fn len(&self) -> Result<usize, String> {
         match self {
             Self::List { elements } => Ok(elements.len()),
-            Self::String(elements) => Ok(elements.len()),
+            Self::String(str) => Ok(str.chars().count()),
             _ => Err(format!(
                 "Length is only defined for list or str, not {}",
                 self.type_str()
