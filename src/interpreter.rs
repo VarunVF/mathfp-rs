@@ -127,55 +127,65 @@ impl Interpreter {
                 TokenType::EqualEqual => Ok(RuntimeValue::Boolean(left == right)),
                 _ => unreachable!("There should be no other binary operators"),
             },
-            (_, _) => match op.kind {
-                // Plus also defined for String and List.
-                TokenType::Plus => match (left, right) {
-                    (RuntimeValue::String(left), RuntimeValue::String(right)) => {
-                        Ok(RuntimeValue::String(format!("{left}{right}")))
-                    }
-                    (
-                        RuntimeValue::List { elements: left },
-                        RuntimeValue::List { elements: right },
-                    ) => Ok(RuntimeValue::List {
-                        elements: [left, right].concat(),
-                    }),
-                    (left, right) => Self::make_unsupported_binary_expr_err(&left, &right, op),
-                },
-                // Star also defined for List and Number.
-                TokenType::Star => match (left, right) {
-                    (RuntimeValue::List { elements }, RuntimeValue::Number(count))
-                    | (RuntimeValue::Number(count), RuntimeValue::List { elements }) => {
-                        if count.fract() == 0.0 && count >= 0.0 {
-                            let count = count as usize;
-                            let repeated = elements
-                                .iter()
-                                .cycle()
-                                .take(elements.len() * count)
-                                .cloned()
-                                .collect();
-                            Ok(RuntimeValue::List { elements: repeated })
-                        } else if count <= 0.0 {
-                            Err(format!(
-                                "Cannot multiply list by negative number: '{count}'"
-                            ))
-                        } else {
-                            Err(format!("Cannot multiply list by float: '{count}'"))
+            (_, _) => {
+                match op.kind {
+                    // Plus also defined for String and List.
+                    TokenType::Plus => match (left, right) {
+                        (RuntimeValue::String(left), RuntimeValue::String(right)) => {
+                            Ok(RuntimeValue::String(format!("{left}{right}")))
                         }
+                        (
+                            RuntimeValue::List { elements: left },
+                            RuntimeValue::List { elements: right },
+                        ) => Ok(RuntimeValue::List {
+                            elements: [left, right].concat(),
+                        }),
+                        (left, right) => Self::make_unsupported_binary_expr_err(&left, &right, op),
+                    },
+                    // Star also defined for List and Number.
+                    TokenType::Star => match (left, right) {
+                        (RuntimeValue::List { elements }, RuntimeValue::Number(count))
+                        | (RuntimeValue::Number(count), RuntimeValue::List { elements }) => {
+                            if count.fract() != 0.0 {
+                                Err(format!("Cannot multiply list by float: '{count}'"))
+                            } else if count < 0.0 {
+                                Err(format!(
+                                    "Cannot multiply list by negative number: '{count}'"
+                                ))
+                            } else {
+                                let too_large = || {
+                                    format!(
+                                        "Insufficient memory to repeat length {} list {count} times",
+                                        elements.len()
+                                    )
+                                };
+                                let total = elements
+                                    .len()
+                                    .checked_mul(count as usize)
+                                    .ok_or_else(too_large)?;
+
+                                let mut repeated = Vec::new();
+                                repeated.try_reserve(total).map_err(|_| too_large())?;
+
+                                repeated.extend(elements.iter().cycle().take(total).cloned());
+                                Ok(RuntimeValue::List { elements: repeated })
+                            }
+                        }
+                        (left, right) => Self::make_unsupported_binary_expr_err(&left, &right, op),
+                    },
+                    // Minus, Slash not defined for other types.
+                    TokenType::Minus | TokenType::Slash => {
+                        Self::make_unsupported_binary_expr_err(&left, &right, op)
                     }
-                    (left, right) => Self::make_unsupported_binary_expr_err(&left, &right, op),
-                },
-                // Minus, Slash not defined for other types.
-                TokenType::Minus | TokenType::Slash => {
-                    Self::make_unsupported_binary_expr_err(&left, &right, op)
+                    TokenType::Less => Ok(RuntimeValue::Boolean(left < right)),
+                    TokenType::LessEqual => Ok(RuntimeValue::Boolean(left <= right)),
+                    TokenType::Greater => Ok(RuntimeValue::Boolean(left > right)),
+                    TokenType::GreaterEqual => Ok(RuntimeValue::Boolean(left >= right)),
+                    TokenType::BangEqual => Ok(RuntimeValue::Boolean(left != right)),
+                    TokenType::EqualEqual => Ok(RuntimeValue::Boolean(left == right)),
+                    _ => unreachable!("There should be no other binary operators"),
                 }
-                TokenType::Less => Ok(RuntimeValue::Boolean(left < right)),
-                TokenType::LessEqual => Ok(RuntimeValue::Boolean(left <= right)),
-                TokenType::Greater => Ok(RuntimeValue::Boolean(left > right)),
-                TokenType::GreaterEqual => Ok(RuntimeValue::Boolean(left >= right)),
-                TokenType::BangEqual => Ok(RuntimeValue::Boolean(left != right)),
-                TokenType::EqualEqual => Ok(RuntimeValue::Boolean(left == right)),
-                _ => unreachable!("There should be no other binary operators"),
-            },
+            }
         }
     }
 

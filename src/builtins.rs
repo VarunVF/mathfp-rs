@@ -370,6 +370,14 @@ fn verify_and_get_range(start: f64, stop: f64) -> Result<(i64, i64), String> {
     }
 }
 
+fn range_count(start: i64, stop: i64) -> Option<usize> {
+    if start >= stop {
+        Some(0)
+    } else {
+        stop.checked_sub(start).map(|x| x as usize)
+    }
+}
+
 pub fn __range(
     value: RuntimeValue,
     _env: Rc<RefCell<Environment>>,
@@ -378,12 +386,18 @@ pub fn __range(
         && let Some(&RuntimeValue::Number(start)) = args.first()
         && let Some(&RuntimeValue::Number(stop)) = args.get(1)
     {
+        let too_large = || {
+            format!(
+                "Insufficient memory to create range of {} elements",
+                stop - start
+            )
+        };
         let (start, stop) = verify_and_get_range(start, stop)?;
-        Ok(RuntimeValue::List {
-            elements: (start..stop)
-                .map(|x| RuntimeValue::Number(x as f64))
-                .collect(),
-        })
+        let mut range = Vec::new();
+        let count = range_count(start, stop).ok_or_else(too_large)?;
+        range.try_reserve(count).map_err(|_| too_large())?;
+        range.extend((start..stop).map(|x| RuntimeValue::Number(x as f64)));
+        Ok(RuntimeValue::List { elements: range })
     } else {
         Err("Invalid argument for range()".to_string())
     }

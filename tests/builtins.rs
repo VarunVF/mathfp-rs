@@ -240,7 +240,45 @@ fn test_range() {
 }
 
 #[test]
+#[should_panic(expected = "Insufficient memory")]
+fn test_large_range() {
+    execute_or_panic("range(-9999999999999999999, 9999999999999999999)", &[]);
+}
+
+#[test]
 #[should_panic(expected = "Interval bounds must be integers")]
 fn test_non_integer_range() {
     execute_or_panic("range(0, 5.2)", &[]);
+}
+
+#[test]
+fn test_list_repeat() {
+    assert_list("[1, 2] * 0", &[]);
+    assert_list(
+        "2 * [1, 2]",
+        &[
+            RuntimeValue::Number(1.0),
+            RuntimeValue::Number(2.0),
+            RuntimeValue::Number(1.0),
+            RuntimeValue::Number(2.0),
+        ],
+    );
+}
+
+#[test]
+#[should_panic(expected = "Insufficient memory")]
+fn test_large_list_repeat() {
+    execute_or_panic("[1] * 9999999999999999999", &[]);
+}
+
+#[test]
+#[should_panic(expected = "Cannot multiply list by negative number")]
+fn test_negative_list_repeat() {
+    execute_or_panic("[1, 2] * -1", &[]);
+}
+
+#[test]
+#[should_panic(expected = "Cannot multiply list by float")]
+fn test_float_list_repeat() {
+    execute_or_panic("[1, 2] * 1.2", &[]);
 }
