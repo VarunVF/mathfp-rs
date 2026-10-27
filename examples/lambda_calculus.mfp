@@ -1,0 +1,27 @@
+// Church Booleans
+If := cond |-> t |-> f |-> cond(t)(f);
+True := x |-> y |-> x;
+False := x |-> y |-> y;
+println(If(True, "It worked!", "It failed!"));
+
+// Church numerals
+Zero := f |-> x |-> x;
+One  := f |-> x |-> f(x);
+Two  := f |-> x |-> f(f(x));
+Succ := n |-> f |-> x |-> f(n(f)(x));
+Add  := m |-> n |-> f |-> x |-> m(f)(n(f)(x));
+Mult := m |-> n |-> f |-> m(n(f));
+ToInt := n |-> n(x |-> x + 1)(0);
+Three := Add(One)(Two);
+Six := Mult(Two)(Three);
+println(ToInt(Six));
+
+// Z combinator, for unnamed recursion
+Z := f |-> (x |-> f(v |-> x(x)(v)))(x |-> f(v |-> x(x)(v)));
+IsZero := n |-> n(x |-> False)(True);
+Pred := n |-> f |-> x |-> n(g |-> h |-> h(g(f)))(u |-> x)(u |-> u);
+Fact := Z(f |-> n |-> If(IsZero(n))(u |-> One)(u |-> Mult(n)(f(Pred(n))))(0));
+println(ToInt(Fact(Six)));
+
+// Omega term, infinite looping
+// O := (x |-> x(x))(x |-> x(x));

@@ -1,0 +1,80 @@
+// machine registers
+a := 0;
+b := 0;
+pc := 0;
+
+// registers enum
+REG_A := 0;
+REG_B := 1;
+
+// instruction set enum
+OP_INC := 0;
+OP_DEC := 1;
+OP_JMP := 2;
+OP_JZ  := 3;
+
+increment := reg |-> {
+    if reg == REG_A then
+        a = a + 1
+    else
+        b = b + 1
+};
+
+decrement := reg |-> {
+    if reg == REG_A then
+        a = a - 1
+    else
+        b = b - 1
+};
+
+jump := target |-> {
+    pc = target - 1
+};
+
+jump_if_zero := reg |-> target |-> {
+    if reg == REG_A then
+        (if a == 0 then pc = target)
+    else
+        (if b == 0 then pc = target)
+};
+
+print_state := _ |-> {
+    ostream := x |-> { print(x); ostream };
+    ostream("Machine state: \n");
+    ostream(" A = ", str(a), "\n");
+    ostream(" B = ", str(b), "\n");
+    ostream("PC = ", str(pc), "\n");
+};
+
+emulate := program |-> {
+    op  := inst |-> get(inst, 0);
+    reg := inst |-> get(inst, 1);
+    arg := inst |-> get(inst, 2);
+
+    run := _ |-> if pc < len(program) then {
+        inst := get(program, pc);
+        match {
+            op(inst) == OP_INC => increment(reg(inst)),
+            op(inst) == OP_DEC => decrement(reg(inst)),
+            op(inst) == OP_JMP => jump(arg(inst)),
+            op(inst) == OP_JZ => jump_if_zero(reg(inst), arg(inst)),
+            true => println("Invalid opcode " + str(op(inst))),
+        };
+        pc = pc + 1;
+        run()
+    } else {
+        nil
+    };
+
+    run()
+};
+
+emulate([
+    [OP_INC, REG_A],
+    [OP_INC, REG_A],
+    [OP_JZ,  REG_A, 6],
+    [OP_INC, REG_B],
+    [OP_DEC, REG_A],
+    [OP_JMP,     0, 2],
+]);
+print_state();

@@ -1,0 +1,21 @@
+for := items |-> do |-> {
+    map(i |-> do(i), items);
+};
+
+for(range(0, 3), println);
+
+while := cond |-> do |-> {
+    if cond() then {
+        do();
+        while(cond, do)
+    } else {
+        nil
+    }
+};
+
+items := range(0, 3);
+i := 0;
+while(_ |-> i < len(items), _ |-> {
+    println(get(items, i));
+    i = i + 1
+});

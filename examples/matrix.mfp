@@ -1,0 +1,85 @@
+vec := n |-> [0] * n;
+vec3 := a |-> b |-> c |-> [a, b, c];
+mat := n |-> m |-> [[0] * m] * n;
+
+sum := list |-> reduce(acc |-> y |-> acc + y, 0, list);
+
+dot := u |-> v |-> {
+    if len(u) != len(v) then
+        nil
+    else
+        sum(map(i |-> get(u, i) * get(v, i), range(0, len(u))))
+};
+
+transpose := A |-> {
+    // For an n by m matrix A, A^T is m by n.
+    map(
+        m |-> map(n |-> get(get(A, n), m), range(0, len(A))),
+        range(0, len(get(A, 0)))
+    )
+};
+
+mat_mul := A |-> B |-> {
+    if len(get(A, 0)) != len(B) then {
+        nil  // the product is undefined.
+    } else {
+        Bt := transpose(B);
+        map(
+            a |-> map(b |-> dot(get(A, a), get(Bt, b)), range(0, len(get(B, 0)))),
+            range(0, len(A))
+        )
+    }
+};
+
+trace := A |-> {
+    if len(A) != len(get(A, 0)) then
+        nil
+    else
+        sum(map(n |-> get(get(A, n), n), range(0, len(A))))
+};
+
+det := A |-> {
+    access := row |-> col |-> get(get(A, row), col);
+    match {
+        len(A) == 0 => 1,
+        len(A) != len(get(A, 0)) => nil,  // non-square matrix.
+        len(A) == 1 => access(0, 0),
+        len(A) == 2 => {
+            a := access(0, 0);
+            b := access(0, 1);
+            c := access(1, 0);
+            d := access(1, 1);
+            a*d - b*c
+        },
+        len(A) == 3 => {
+            a := access(0, 0);
+            b := access(0, 1);
+            c := access(0, 2);
+            d := access(1, 0);
+            e := access(1, 1);
+            f := access(1, 2);
+            g := access(2, 0);
+            h := access(2, 1);
+            i := access(2, 2);
+            a*e*i + b*f*g + c*d*h - c*e*g - b*d*i - a*f*h
+        },
+        true => {
+            println("Error: det() is only implemented for size <= 3, not " + str(len(A)));
+            nil
+        }
+    }
+};
+
+// A := [[1, 2, 5],
+//       [3, 4, 8]];
+// At := transpose(A);
+// AAt := mat_mul(A, At);
+// println("    A = " + str(A));
+// println("  A^T = " + str(At));
+// println(" AA^T = " + str(AAt));
+
+A := [[1, 2, 3],
+      [4, 5, 6],
+      [7, 8, 9]];
+println(trace(A));
+println(det(A));
