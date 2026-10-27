@@ -145,6 +145,12 @@ fn test_get() {
 }
 
 #[test]
+#[should_panic(expected = "get() expects a list or str")]
+fn test_get_non_iterable() {
+    execute_or_panic("get(5, 0)", &[]);
+}
+
+#[test]
 #[should_panic(expected = "out of bounds for str")]
 fn test_get_string_out_of_bounds() {
     execute_or_panic("get(\"hello\", 100)", &[]);
@@ -159,7 +165,6 @@ fn test_get_list_out_of_bounds() {
 #[test]
 fn test_slice() {
     assert_str("slice(\"hello world\", 0, 5)", "hello");
-    assert_str("slice(\"hello world\", 0, -1)", "");
     assert_str("slice(\"hello world\", 0, 0)", "");
 
     assert_list(
@@ -170,6 +175,18 @@ fn test_slice() {
             RuntimeValue::Number(5.0),
         ],
     );
+}
+
+#[test]
+#[should_panic(expected = "Interval bounds must be nonnegative")]
+fn test_slice_negative() {
+    execute_or_panic("slice(\"hello world\", 0, -1)", &[]);
+}
+
+#[test]
+#[should_panic(expected = "Interval [7, 6) is out of bounds")]
+fn test_slice_out_of_bounds() {
+    execute_or_panic("slice([1, 2, 3], 7, 6)", &[]);
 }
 
 #[test]

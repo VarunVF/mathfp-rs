@@ -239,30 +239,48 @@ fn is_whole(x: f64) -> bool {
 
 pub fn __get(value: RuntimeValue, _env: Rc<RefCell<Environment>>) -> Result<RuntimeValue, String> {
     if let RuntimeValue::List { elements: args } = value
-        && let Some(RuntimeValue::List { .. } | RuntimeValue::String(_)) = args.first()
+        // && let Some(RuntimeValue::List { .. } | RuntimeValue::String(_)) = args.first()
         && let Some(&RuntimeValue::Number(i)) = args.get(1)
     {
-        let index = if is_whole(i) {
-            i as usize
+        let index = if !is_whole(i) {
+            Err(format!("Index must be an integer, not {i}"))?
+        } else if i < 0.0 {
+            Err(format!("Index must be nonnegative, not {i}"))?
         } else {
-            Err("Indices must be integers, not float".to_string())?
+            i as usize
         };
+
         let elements = &args[0];
-        elements.get(index).ok_or(format!(
-            "Index {} is out of bounds for {} of length {}",
-            index,
-            elements.type_str(),
-            elements.len()?
-        ))
+        if let Some(RuntimeValue::List { .. } | RuntimeValue::String(_)) = args.first() {
+            elements.get(index).ok_or(format!(
+                "Index {} is out of bounds for {} of length {}",
+                index,
+                elements.type_str(),
+                elements.len()?
+            ))
+        } else {
+            Err(format!(
+                "get() expects a list or str, not {}",
+                elements.type_str()
+            ))
+        }
     } else {
         Err("Invalid argument for get()".to_string())
     }
 }
 
-fn verify_and_get_slice(start: f64, stop: f64) -> Result<(usize, usize), String> {
+fn verify_and_get_slice(start: f64, stop: f64, len: usize) -> Result<(usize, usize), String> {
     if !is_whole(start) || !is_whole(stop) {
         Err(format!(
             "Interval bounds must be integers, not [{start}, {stop})"
+        ))
+    } else if start < 0.0 || stop < 0.0 {
+        Err(format!(
+            "Interval bounds must be nonnegative, not [{start}, {stop})"
+        ))
+    } else if start > len as f64 || stop > len as f64 {
+        Err(format!(
+            "Interval [{start}, {stop}) is out of bounds for iterable of length {len}"
         ))
     } else {
         Ok((start as usize, stop as usize))
@@ -277,8 +295,8 @@ pub fn __slice(
         && let Some(&RuntimeValue::Number(start)) = args.get(1)
         && let Some(&RuntimeValue::Number(stop)) = args.get(2)
     {
-        let (start, stop) = verify_and_get_slice(start, stop)?;
         if let Some(RuntimeValue::String(str)) = args.first() {
+            let (start, stop) = verify_and_get_slice(start, stop, str.len())?;
             Ok(RuntimeValue::String(
                 str.char_indices()
                     .filter(|(idx, _)| *idx >= start && *idx < stop)
@@ -286,6 +304,7 @@ pub fn __slice(
                     .collect(),
             ))
         } else if let Some(RuntimeValue::List { elements: items }) = args.first() {
+            let (start, stop) = verify_and_get_slice(start, stop, items.len())?;
             Ok(RuntimeValue::List {
                 elements: items.get(start..stop).unwrap_or(&[]).to_vec(),
             })
