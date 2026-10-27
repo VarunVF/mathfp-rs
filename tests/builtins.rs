@@ -175,6 +175,10 @@ fn test_slice() {
             RuntimeValue::Number(5.0),
         ],
     );
+
+    // slice with start >= stop is empty
+    assert_list("slice([1,2,3], 2, 1)", &[]);
+    assert_list("slice([1,2,3], 2, 2)", &[]);
 }
 
 #[test]
@@ -235,6 +239,7 @@ fn test_range() {
         ],
     );
 
+    // range with start >= stop is empty
     assert_list("range(0, -3)", &[]);
     assert_list("range(0, 0)", &[]);
 }

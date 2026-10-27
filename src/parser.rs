@@ -168,7 +168,7 @@ impl Parser {
                     Some(TokenType::Equal) => self.assignment(),
                     Some(TokenType::Binding) => self.binding(),
                     Some(TokenType::MapsTo) => self.function_def(),
-                    Some(_) => self.binary_expr(),
+                    Some(_) => self.equality(),
                     _ => Err(parser_fmt!(self, "Expected an expression after {}", kind)),
                 },
             }
@@ -344,26 +344,6 @@ impl Parser {
         }
     }
 
-    fn binary_expr(&mut self) -> Result<Expr, String> {
-        let mut left = self.equality()?;
-
-        while self.matches_any(&[TokenType::Plus, TokenType::Minus]) {
-            let op = match self.current() {
-                Some(op) => op.clone(),
-                None => return Err(parser_fmt!(self, "Expected '+' or '-'")),
-            };
-            self.advance();
-            let right = self.equality()?;
-            left = Expr::Binary {
-                left: Box::new(left),
-                op,
-                right: Box::new(right),
-            };
-        }
-
-        Ok(left)
-    }
-
     fn equality(&mut self) -> Result<Expr, String> {
         let mut left = self.comparison()?;
 
@@ -385,7 +365,7 @@ impl Parser {
     }
 
     fn comparison(&mut self) -> Result<Expr, String> {
-        let mut left = self.factor()?;
+        let mut left = self.term()?;
 
         while self.matches_any(&[
             TokenType::Greater,
@@ -398,6 +378,26 @@ impl Parser {
                 None => {
                     return Err(parser_fmt!(self, "Expected one of '>', '>=', '<', '<='"));
                 }
+            };
+            self.advance();
+            let right = self.term()?;
+            left = Expr::Binary {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    fn term(&mut self) -> Result<Expr, String> {
+        let mut left = self.factor()?;
+
+        while self.matches_any(&[TokenType::Plus, TokenType::Minus]) {
+            let op = match self.current() {
+                Some(op) => op.clone(),
+                None => return Err(parser_fmt!(self, "Expected '+' or '-'")),
             };
             self.advance();
             let right = self.factor()?;

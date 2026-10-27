@@ -51,3 +51,12 @@ fn test_off_by_one() {
     assert_bool("5 <= 5", true);
     assert_bool("5 != 10", true);
 }
+
+#[test]
+fn test_precedence() {
+    assert_bool("1 + 2 == 3", true);
+    assert_bool("1 * 2 + 3 != 3", true);
+    assert_bool("1 < 2 == true", true);
+    assert_bool("-5 < 7", true);
+    assert_number("3 - 2 - 1", 0.0);
+}
