@@ -193,13 +193,13 @@ fn test_slice_out_of_bounds() {
 }
 
 #[test]
-#[should_panic(expected = "Interval stop must not exceed start")]
+#[should_panic(expected = "Interval start must not exceed stop")]
 fn test_slice_str_invalid() {
     assert_str("slice(\"hello world\", 5, 0)", "");
 }
 
 #[test]
-#[should_panic(expected = "Interval stop must not exceed start")]
+#[should_panic(expected = "Interval start must not exceed stop")]
 fn test_slice_list_invalid() {
     assert_str("slice(\"hello world\", 5, 0)", "");
 }
