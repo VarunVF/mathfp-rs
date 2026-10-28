@@ -282,6 +282,10 @@ fn verify_and_get_slice(start: f64, stop: f64, len: usize) -> Result<(usize, usi
         Err(format!(
             "Interval [{start}, {stop}) is out of bounds for iterable of length {len}"
         ))
+    } else if start > stop {
+        Err(format!(
+            "Interval stop must not exceed start, got [{start}, {stop})"
+        ))
     } else {
         Ok((start as usize, stop as usize))
     }

@@ -166,6 +166,7 @@ fn test_get_list_out_of_bounds() {
 fn test_slice() {
     assert_str("slice(\"hello world\", 0, 5)", "hello");
     assert_str("slice(\"hello world\", 0, 0)", "");
+    assert_str("slice(\"hello world\", 11, 11)", "");
 
     assert_list(
         "slice([6, 2, 5, 0], 0, 3)",
@@ -175,10 +176,8 @@ fn test_slice() {
             RuntimeValue::Number(5.0),
         ],
     );
-
-    // slice with start >= stop is empty
-    assert_list("slice([1,2,3], 2, 1)", &[]);
     assert_list("slice([1,2,3], 2, 2)", &[]);
+    assert_list("slice([1,2,3], 3, 3)", &[]);
 }
 
 #[test]
@@ -191,6 +190,18 @@ fn test_slice_negative() {
 #[should_panic(expected = "Interval [7, 6) is out of bounds")]
 fn test_slice_out_of_bounds() {
     execute_or_panic("slice([1, 2, 3], 7, 6)", &[]);
+}
+
+#[test]
+#[should_panic(expected = "Interval stop must not exceed start")]
+fn test_slice_str_invalid() {
+    assert_str("slice(\"hello world\", 5, 0)", "");
+}
+
+#[test]
+#[should_panic(expected = "Interval stop must not exceed start")]
+fn test_slice_list_invalid() {
+    assert_str("slice(\"hello world\", 5, 0)", "");
 }
 
 #[test]
